@@ -1,9 +1,572 @@
 package com.samet.music;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+import java.io.*;
 
+import java.io.PrintStream;
 
-
+import static java.lang.System.out;
 
 public class Music {
 
- 
+
+    /** Scanner object for user input. */
+    public Scanner scanner;
+    /** PrintStream object for output. */
+    public PrintStream out;
+    private boolean isLoggedIn = false;
+    private String currentUser = null;
+    private Map<String, String> userCredentials = new HashMap<>(); // Kullanıcı adı -> şifre eşlemesi
+
+
+    /**
+     * @brief Test mode flag.
+     *
+     * Used to control specific behaviors during testing scenarios.
+     */
+    public boolean isTestMode = false;
+
+    public Music(Scanner inputScanner, PrintStream out) {
+        this.scanner = inputScanner;  //
+        this.out = out;
+    }
+
+    public void clearScreen() {
+        out.print("\033[H\033[2J");
+        out.flush();
+    }
+
+
+    public int getInput() {
+        try {
+            int input = scanner.nextInt();
+            scanner.nextLine(); // Satır sonunu temizle
+            return input;
+        } catch (Exception e) {
+            scanner.nextLine(); // Hatalı girişleri temizle
+            handleInputError(); // Hata mesajını yazdır
+            return -2; // Hata durumunda -2 döner
+        }
+    }
+
+    /**
+     * Displays error message for invalid input
+     */
+    public void handleInputError() {
+        clearScreen();
+        out.println("Invalid input. Please enter a number.");
+    }
+
+    public  boolean enterToContinue() {
+        out.println("Press enter to continue...");
+        if (!isTestMode) {
+            scanner.nextLine();
+        }
+        return true;
+    }
+
+    public void printOpeningScreen() {
+        clearScreen();
+        out.println("=============== MAIN MENU ===============");
+        out.println("1. Login");
+        out.println("2. Register");
+        out.println("3. Exit Program");
+        out.println("=========================================");
+        out.print("Please enter a number: ");
+    }
+
+    public void printMainMenu() {
+        clearScreen();
+        out.println("========================================");
+        out.println("      MAIN MENU - MUSIC LIBRARY        ");
+        out.println("========================================");
+        if (currentUser != null) {
+            out.println("Logged in as: " + currentUser);
+            out.println("========================================");
+        }
+        out.println("1. Music Collection");
+        out.println("2. Playlists");
+        out.println("3. Metadata Editing");
+        out.println("4. Recommendations");
+        out.println("5. Logout");
+        out.println("========================================");
+        out.print("Please enter your choice: ");
+    }
+
+    public void printMusicCollectionMenu() {
+        clearScreen();
+        out.println("========================================");
+        out.println("         MUSIC COLLECTİON MENU            ");
+        out.println("========================================");
+        out.println("1. Add Song");
+        out.println("2. Add Album");
+        out.println("3. Add Artist");
+        out.println("4. View Songs");
+        out.println("5. View Albums");
+        out.println("6. View Artists");
+        out.println("0. Back to Main Menu");
+        out.println("========================================");
+        out.print("Please enter your choice: ");
+    }
+
+    public void printPlayistsMenu() {
+        clearScreen();
+        out.println("========================================");
+        out.println("         PLAYLISTS MENU            ");
+        out.println("========================================");
+        out.println("1. Edit Artist");
+        out.println("2. Edit Album");
+        out.println("3. Edit Genre");
+        out.println("0. Back to Music Library Menu");
+        out.println("========================================");
+        out.print("Please enter your choice: ");
+    }
+
+    public void printEditMetadataMenu() {
+        clearScreen();
+        out.println("========================================");
+        out.println("         EDIT METADATA MENU            ");
+        out.println("========================================");
+        out.println("1. Edit Artist");
+        out.println("2. Edit Album");
+        out.println("3. Edit Genre");
+        out.println("0. Back to Music Library Menu");
+        out.println("========================================");
+        out.print("Please enter your choice: ");
+    }
+
+    public void printRecommendationsMenu() {
+        clearScreen();
+        out.println("========================================");
+        out.println("         RECOMMENDATİONS MENU            ");
+        out.println("========================================");
+        out.println("1. ");
+        out.println("2. ");
+        out.println("3. ");
+        out.println("0. Back to Music Library Menu");
+        out.println("========================================");
+        out.print("Please enter your choice: ");
+    }
+
+    private boolean displayOpeningScreen() {
+        int choice;
+        while (true) {
+            printOpeningScreen();
+            choice = getInput();
+
+            if (choice == -2) {
+                handleInputError();
+                enterToContinue();
+                continue;
+            }
+
+            switch (choice) {
+                case 1: // Login
+                    if (loginUser()) {
+                        return true;
+                    }
+                    break;
+                case 2: // Register
+                    registerUser();
+                    break;
+                case 3: // Exit
+                    return false;
+                default:
+                    clearScreen();
+                    out.println("Invalid choice. Please try again.");
+                    enterToContinue();
+                    break;
+            }
+        }
+    }
+
+    private boolean loginUser() {
+        clearScreen();
+        Scanner in = new Scanner(System.in);
+        out.println("========== LOGIN ==========");
+        out.print("Username: ");
+        String username = in.nextLine().trim();
+        out.print("Password: ");
+        String password = in.nextLine().trim();
+
+        // Kullanıcı adı ve şifre doğrulaması
+        if (username.isEmpty() || password.isEmpty()) {
+            clearScreen();
+            out.println("Login failed. Username and password cannot be empty.");
+            enterToContinue();
+            return false;
+        }
+
+        // Kullanıcı adının kayıtlı olup olmadığını kontrol et
+        if (!userCredentials.containsKey(username)) {
+            clearScreen();
+            out.println("Login failed. User not found.");
+            enterToContinue();
+            return false;
+        }
+
+        // Şifre kontrolü
+        if (!userCredentials.get(username).equals(password)) {
+            clearScreen();
+            out.println("Login failed. Incorrect password.");
+            enterToContinue();
+            return false;
+        }
+
+        // Başarılı giriş
+        clearScreen();
+        out.println("Login successful! Welcome, " + username);
+        isLoggedIn = true;
+        currentUser = username;
+        enterToContinue();
+        return true;
+    }
+
+    /**
+     * Processes user registration
+     */
+    private void registerUser() {
+        clearScreen();
+        Scanner in = new Scanner(System.in);
+        out.println("========== REGISTER ==========");
+        out.print("Enter new username: ");
+        String username = in.nextLine().trim();
+        out.print("Enter new password: ");
+        String password = in.nextLine().trim();
+        out.print("Confirm password: ");
+        String confirmPass = in.nextLine().trim();
+
+        // Temel doğrulamalar
+        if (username.isEmpty()) {
+            clearScreen();
+            out.println("Registration failed. Username cannot be empty.");
+            enterToContinue();
+            return;
+        }
+
+        if (password.isEmpty()) {
+            clearScreen();
+            out.println("Registration failed. Password cannot be empty.");
+            enterToContinue();
+            return;
+        }
+
+        if (!password.equals(confirmPass)) {
+            clearScreen();
+            out.println("Registration failed. Passwords do not match.");
+            enterToContinue();
+            return;
+        }
+
+        if (userCredentials.containsKey(username)) {
+            clearScreen();
+            out.println("Registration failed. Username already exists.");
+            enterToContinue();
+            return;
+        }
+
+        userCredentials.put(username, password);
+
+        clearScreen();
+        out.println("Registration successful! You can now login.");
+        enterToContinue();
+    }
+
+    private void userOptionsMenu() {
+        int choice;
+        while (true) {
+            printMainMenu();
+            choice = getInput();
+            if (choice == -2) {
+                handleInputError();
+                enterToContinue();
+                continue;
+            }
+            switch (choice) {
+                case 1:
+                    musicCollectionMenu(); // Sadece menüyü göstermek yerine işlem yapan metodu çağır
+                    break;
+                case 2:
+                    playlistsMenu();
+                    break;
+                case 3:
+                    editMetadataMenu();
+                    break;
+                case 4:
+                    recommendationsMenu();
+                    break;
+                case 5:
+                    logout();
+                    return;
+                default:
+                    clearScreen();
+                    out.println("Invalid choice. Please try again.");
+                    enterToContinue();
+                    break;
+            }
+        }
+    }
+
+    public void musicCollectionMenu() {
+        int choice;
+
+        while (true) {
+            printMusicCollectionMenu();
+            choice = getInput();
+
+            if (choice == -2) {
+                handleInputError();
+                enterToContinue();
+                continue;
+            }
+
+            switch (choice) {
+                case 0: // Ana menüye dön
+                    return;
+                case 1:
+                    // Add Song işlemleri
+                    clearScreen();
+                    out.println("Add Song functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 2:
+                    // Add Album işlemleri
+                    clearScreen();
+                    out.println("Add Album functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 3:
+                    // Add Artist işlemleri
+                    clearScreen();
+                    out.println("Add Artist functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 4:
+                    // View Songs işlemleri
+                    clearScreen();
+                    out.println("View Songs functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 5:
+                    // View Albums işlemleri
+                    clearScreen();
+                    out.println("View Albums functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 6:
+                    // View Artists işlemleri
+                    clearScreen();
+                    out.println("View Artists functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                default:
+                    clearScreen();
+                    out.println("Invalid choice. Please try again.");
+                    enterToContinue();
+                    break;
+            }
+        }
+    }
+
+    // Diğer menü işlemleri için gerekli metotlar
+    public void playlistsMenu() {
+        int choice;
+
+        while (true) {
+            printPlayistsMenu();
+            choice = getInput();
+
+            if (choice == -2) {
+                handleInputError();
+                enterToContinue();
+                continue;
+            }
+
+            switch (choice) {
+                case 0: // Ana menüye dön
+                    return;
+                case 1:
+                    // İlgili işlemler
+                    clearScreen();
+                    out.println("First playlist option functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 2:
+                    // İlgili işlemler
+                    clearScreen();
+                    out.println("Second playlist option functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 3:
+                    // İlgili işlemler
+                    clearScreen();
+                    out.println("Third playlist option functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                default:
+                    clearScreen();
+                    out.println("Invalid choice. Please try again.");
+                    enterToContinue();
+                    break;
+            }
+        }
+    }
+
+    public void editMetadataMenu() {
+        int choice;
+
+        while (true) {
+            printEditMetadataMenu();
+            choice = getInput();
+
+            if (choice == -2) {
+                handleInputError();
+                enterToContinue();
+                continue;
+            }
+
+            switch (choice) {
+                case 0: // Ana menüye dön
+                    return;
+                case 1:
+                    // Edit Artist işlemleri
+                    clearScreen();
+                    out.println("Edit Artist functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 2:
+                    // Edit Album işlemleri
+                    clearScreen();
+                    out.println("Edit Album functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 3:
+                    // Edit Genre işlemleri
+                    clearScreen();
+                    out.println("Edit Genre functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                default:
+                    clearScreen();
+                    out.println("Invalid choice. Please try again.");
+                    enterToContinue();
+                    break;
+            }
+        }
+    }
+
+    public void recommendationsMenu() {
+        int choice;
+
+        while (true) {
+            printRecommendationsMenu();
+            choice = getInput();
+
+            if (choice == -2) {
+                handleInputError();
+                enterToContinue();
+                continue;
+            }
+
+            switch (choice) {
+                case 0: // Ana menüye dön
+                    return;
+                case 1:
+                    // İlk öneri işlemi
+                    clearScreen();
+                    out.println("First recommendation functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 2:
+                    // İkinci öneri işlemi
+                    clearScreen();
+                    out.println("Second recommendation functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                case 3:
+                    // Üçüncü öneri işlemi
+                    clearScreen();
+                    out.println("Third recommendation functionality will be implemented here");
+                    enterToContinue();
+                    break;
+                default:
+                    clearScreen();
+                    out.println("Invalid choice. Please try again.");
+                    enterToContinue();
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Logs out the current user
+     */
+    private void logout() {
+        clearScreen();
+        out.println("Logging out...");
+        isLoggedIn = false;
+        currentUser = null;
+        enterToContinue();
+    }
+
+    public void mainMenu(String libraryFilePath) {
+        // Load data from file or initialize if not exists
+        loadLibraryData(libraryFilePath);
+
+        // Display login/register menu first
+        if (displayOpeningScreen()) {
+            // Only show main menu if login is successful
+            userOptionsMenu();
+        }
+
+        // Save data before exiting
+        saveLibraryData(libraryFilePath);
+    }
+
+    private void loadLibraryData(String filePath) {
+        File userFile = new File(filePath);
+
+        // Eğer dosya yoksa, varsayılan kullanıcıları ekle
+        if (!userFile.exists()) {
+            userCredentials.put("admin", "admin123");
+            userCredentials.put("user", "password");
+            return;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(userFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(":");
+                if (parts.length == 2) {
+                    userCredentials.put(parts[0], parts[1]);
+                }
+            }
+            out.println("User data loaded successfully.");
+        } catch (IOException e) {
+            out.println("Error loading user data: " + e.getMessage());
+            // Hata durumunda varsayılan kullanıcıları ekle
+            userCredentials.put("admin", "admin123");
+            userCredentials.put("user", "password");
+        }
+    }
+
+    /**
+     * Saves library data to file
+     *
+     * @param filePath Path to the library data file
+     */
+    private void saveLibraryData(String filePath) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (Map.Entry<String, String> entry : userCredentials.entrySet()) {
+                writer.write(entry.getKey() + ":" + entry.getValue());
+                writer.newLine();
+            }
+            out.println("User data saved successfully.");
+        } catch (IOException e) {
+            out.println("Error saving user data: " + e.getMessage());
+        }
+    }
+
+
 }
