@@ -1,17 +1,16 @@
 package com.samet.music;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 
-/**
- * Collection for managing playlists
- * Implemented using Singleton pattern
- */
 public class PlaylistCollection extends MusicCollectionManager<Playlist> {
     private static PlaylistCollection instance;
+    private PlaylistDAO playlistDAO;
+    private SongDAO songDAO;
 
     private PlaylistCollection() {
-        // Private constructor for Singleton pattern
+        playlistDAO = new PlaylistDAO();
+        songDAO = new SongDAO();
     }
 
     public static synchronized PlaylistCollection getInstance() {
@@ -26,16 +25,48 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
         return item.getId();
     }
 
+    @Override
+    public void add(Playlist playlist) {
+        super.add(playlist);
+        playlistDAO.insert(playlist);
+    }
+
+    @Override
+    public Playlist getById(String id) {
+        Playlist playlist = super.getById(id);
+
+        if (playlist == null) {
+            playlist = playlistDAO.getById(id);
+            if (playlist != null) {
+                super.add(playlist);
+            }
+        }
+
+        return playlist;
+    }
+
+    @Override
+    public List<Playlist> getAll() {
+        return playlistDAO.getAll();
+    }
+
+    @Override
+    public boolean remove(String id) {
+        boolean removed = super.remove(id);
+        playlistDAO.delete(id);
+        return removed;
+    }
 
     public List<Playlist> searchByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             return new ArrayList<>();
         }
 
-        String searchTerm = name.toLowerCase();
         List<Playlist> results = new ArrayList<>();
+        List<Playlist> allPlaylists = getAll();
 
-        for (Playlist playlist : items.values()) {
+        String searchTerm = name.toLowerCase();
+        for (Playlist playlist : allPlaylists) {
             if (playlist.getName().toLowerCase().contains(searchTerm)) {
                 results.add(playlist);
             }
@@ -45,18 +76,30 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
     }
 
     public List<Playlist> getPlaylistsContainingSong(Song song) {
-        if (song == null) {
-            return new ArrayList<>();
+        return playlistDAO.getPlaylistsContainingSong(song);
+    }
+
+    public void addSongToPlaylist(String playlistId, String songId) {
+        playlistDAO.addSongToPlaylist(playlistId, songId);
+    }
+
+    public void removeSongFromPlaylist(String playlistId, String songId) {
+        playlistDAO.removeSongFromPlaylist(playlistId, songId);
+    }
+
+    public boolean saveToFile(String filePath) {
+        return true;
+    }
+
+    public boolean loadFromFile(String filePath) {
+        List<Playlist> playlists = playlistDAO.getAll();
+
+        clear();
+
+        for (Playlist playlist : playlists) {
+            add(playlist);
         }
 
-        List<Playlist> results = new ArrayList<>();
-
-        for (Playlist playlist : items.values()) {
-            if (playlist.getSongs().contains(song)) {
-                results.add(playlist);
-            }
-        }
-
-        return results;
+        return !playlists.isEmpty();
     }
 }
