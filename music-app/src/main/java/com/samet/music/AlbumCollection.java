@@ -1,17 +1,16 @@
 package com.samet.music;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 
-/**
- * Collection for managing albums
- * Implemented using Singleton pattern
- */
 public class AlbumCollection extends MusicCollectionManager<Album> {
     private static AlbumCollection instance;
+    private AlbumDAO albumDAO;
+    private ArtistDAO artistDAO;
 
     private AlbumCollection() {
-        // Private constructor for Singleton pattern
+        albumDAO = new AlbumDAO();
+        artistDAO = new ArtistDAO();
     }
 
     public static synchronized AlbumCollection getInstance() {
@@ -26,15 +25,48 @@ public class AlbumCollection extends MusicCollectionManager<Album> {
         return item.getId();
     }
 
+    @Override
+    public void add(Album album) {
+        super.add(album);
+        albumDAO.insert(album);
+    }
+
+    @Override
+    public Album getById(String id) {
+        Album album = super.getById(id);
+
+        if (album == null) {
+            album = albumDAO.getById(id);
+            if (album != null) {
+                super.add(album);
+            }
+        }
+
+        return album;
+    }
+
+    @Override
+    public List<Album> getAll() {
+        return albumDAO.getAll();
+    }
+
+    @Override
+    public boolean remove(String id) {
+        boolean removed = super.remove(id);
+        albumDAO.delete(id);
+        return removed;
+    }
+
     public List<Album> searchByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             return new ArrayList<>();
         }
 
-        String searchTerm = name.toLowerCase();
         List<Album> results = new ArrayList<>();
+        List<Album> allAlbums = getAll();
 
-        for (Album album : items.values()) {
+        String searchTerm = name.toLowerCase();
+        for (Album album : allAlbums) {
             if (album.getName().toLowerCase().contains(searchTerm)) {
                 results.add(album);
             }
@@ -44,19 +76,7 @@ public class AlbumCollection extends MusicCollectionManager<Album> {
     }
 
     public List<Album> getByArtist(Artist artist) {
-        if (artist == null) {
-            return new ArrayList<>();
-        }
-
-        List<Album> results = new ArrayList<>();
-
-        for (Album album : items.values()) {
-            if (artist.equals(album.getArtist())) {
-                results.add(album);
-            }
-        }
-
-        return results;
+        return albumDAO.getByArtist(artist);
     }
 
     public List<Album> getByGenre(String genre) {
@@ -64,15 +84,32 @@ public class AlbumCollection extends MusicCollectionManager<Album> {
             return new ArrayList<>();
         }
 
-        String searchTerm = genre.toLowerCase();
         List<Album> results = new ArrayList<>();
+        List<Album> allAlbums = getAll();
 
-        for (Album album : items.values()) {
+        String searchTerm = genre.toLowerCase();
+        for (Album album : allAlbums) {
             if (album.getGenre().toLowerCase().contains(searchTerm)) {
                 results.add(album);
             }
         }
 
         return results;
+    }
+
+    public boolean saveToFile(String filePath) {
+        return true;
+    }
+
+    public boolean loadFromFile(String filePath) {
+        List<Album> albums = albumDAO.getAll();
+
+        clear();
+
+        for (Album album : albums) {
+            add(album);
+        }
+
+        return !albums.isEmpty();
     }
 }

@@ -7,7 +7,7 @@ public class MusicApp {
   public static void main(String[] args) {
     // Create scanner for user input
     Scanner inputScanner = new Scanner(System.in);
-
+    DatabaseUtil.initializeDatabase();
     // Create an instance of the Music class
     Music music = new Music(inputScanner, System.out);
 
