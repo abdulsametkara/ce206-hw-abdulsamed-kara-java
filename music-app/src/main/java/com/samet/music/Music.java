@@ -23,6 +23,8 @@ public class Music {
     private static final String DATA_DIR = "data/";
     private PlaylistUI playlistUI;
     private MetadataEditingUI metadataEditingUI;
+    private RecommendationUI recommendationUI;
+    private MusicRecommendationSystem recommendationSystem;
 
 
     /**
@@ -41,6 +43,8 @@ public class Music {
         this.musicCollectionUI = new MusicCollectionUI(inputScanner, out);
         this.playlistUI = new PlaylistUI(inputScanner, out);
         this.metadataEditingUI = new MetadataEditingUI(inputScanner, out);
+        this.recommendationUI = new RecommendationUI(inputScanner, out);
+        this.recommendationSystem = MusicRecommendationSystem.getInstance();
 
 
 
@@ -162,12 +166,12 @@ public class Music {
     public void printRecommendationsMenu() {
         clearScreen();
         out.println("========================================");
-        out.println("         RECOMMENDATİONS MENU            ");
+        out.println("         RECOMMENDATIONS MENU          ");
         out.println("========================================");
-        out.println("1. ");
-        out.println("2. ");
-        out.println("3. ");
-        out.println("0. Back to Music Library Menu");
+        out.println("1. Get Song Recommendations");
+        out.println("2. Get Album Recommendations");
+        out.println("3. Get Artist Recommendations");
+        out.println("0. Back to Main Menu");
         out.println("========================================");
         out.print("Please enter your choice: ");
     }
@@ -470,24 +474,18 @@ public class Music {
             }
 
             switch (choice) {
-                case 0: // Ana menüye dön
+                case 0: // Return to main menu
                     return;
-                case 1:
-                    // İlk öneri işlemi
-                    clearScreen();
-                    out.println("First recommendation functionality will be implemented here");
+                case 1: // Get Song Recommendations
+                    recommendationUI.showSongRecommendationsByGenre(currentUser);
                     enterToContinue();
                     break;
-                case 2:
-                    // İkinci öneri işlemi
-                    clearScreen();
-                    out.println("Second recommendation functionality will be implemented here");
+                case 2: // Get Album Recommendations
+                    recommendationUI.showAlbumRecommendations(currentUser);
                     enterToContinue();
                     break;
-                case 3:
-                    // Üçüncü öneri işlemi
-                    clearScreen();
-                    out.println("Third recommendation functionality will be implemented here");
+                case 3: // Get Artist Recommendations
+                    recommendationUI.showArtistRecommendations(currentUser);
                     enterToContinue();
                     break;
                 default:
@@ -520,8 +518,10 @@ public class Music {
         String albumFile = DATA_DIR + "albums.dat";
         String songFile = DATA_DIR + "songs.dat";
         String playlistFile = DATA_DIR + "playlists.dat";
+        String recommendationFile = DATA_DIR + "recommendations.dat";
 
         musicService.loadData(artistFile, albumFile, songFile, playlistFile);
+        recommendationSystem.loadRecommendationData(recommendationFile);
 
         // Display login/register menu first
         if (displayOpeningScreen()) {
@@ -532,6 +532,7 @@ public class Music {
         // Save data before exiting
         saveLibraryData(libraryFilePath);
         musicService.saveData(artistFile, albumFile, songFile, playlistFile);
+        recommendationSystem.saveRecommendationData(recommendationFile);
     }
 
     private void loadLibraryData(String filePath) {
