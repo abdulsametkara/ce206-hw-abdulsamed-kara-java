@@ -18,6 +18,11 @@ public class Music {
     private boolean isLoggedIn = false;
     private String currentUser = null;
     private Map<String, String> userCredentials = new HashMap<>(); // Kullanıcı adı -> şifre eşlemesi
+    private MusicCollectionUI musicCollectionUI;
+    private MusicCollectionService musicService;
+    private static final String DATA_DIR = "data/";
+    private PlaylistUI playlistUI;
+    private MetadataEditingUI metadataEditingUI;
 
 
     /**
@@ -28,8 +33,26 @@ public class Music {
     public boolean isTestMode = false;
 
     public Music(Scanner inputScanner, PrintStream out) {
-        this.scanner = inputScanner;  //
+        this.scanner = inputScanner;
         this.out = out;
+
+        // Initialize service and UI components
+        this.musicService = MusicCollectionService.getInstance();
+        this.musicCollectionUI = new MusicCollectionUI(inputScanner, out);
+        this.playlistUI = new PlaylistUI(inputScanner, out);
+        this.metadataEditingUI = new MetadataEditingUI(inputScanner, out);
+
+
+
+        // Create data directory if it doesn't exist
+        createDataDirectory();
+    }
+
+    private void createDataDirectory() {
+        File directory = new File(DATA_DIR);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
     }
 
     public void clearScreen() {
@@ -113,12 +136,12 @@ public class Music {
     public void printPlayistsMenu() {
         clearScreen();
         out.println("========================================");
-        out.println("         PLAYLISTS MENU            ");
+        out.println("         PLAYLISTS MENU                ");
         out.println("========================================");
-        out.println("1. Edit Artist");
-        out.println("2. Edit Album");
-        out.println("3. Edit Genre");
-        out.println("0. Back to Music Library Menu");
+        out.println("1. Create Playlist");
+        out.println("2. View Playlists");
+        out.println("3. Edit Playlist");
+        out.println("0. Back to Main Menu");
         out.println("========================================");
         out.print("Please enter your choice: ");
     }
@@ -130,8 +153,8 @@ public class Music {
         out.println("========================================");
         out.println("1. Edit Artist");
         out.println("2. Edit Album");
-        out.println("3. Edit Genre");
-        out.println("0. Back to Music Library Menu");
+        out.println("3. Edit Song Genre");
+        out.println("0. Back to Main Menu");
         out.println("========================================");
         out.print("Please enter your choice: ");
     }
@@ -308,6 +331,7 @@ public class Music {
         }
     }
 
+    // musicCollectionMenu metodunu şu şekilde güncelleyin
     public void musicCollectionMenu() {
         int choice;
 
@@ -322,42 +346,30 @@ public class Music {
             }
 
             switch (choice) {
-                case 0: // Ana menüye dön
+                case 0: // Return to main menu
                     return;
-                case 1:
-                    // Add Song işlemleri
-                    clearScreen();
-                    out.println("Add Song functionality will be implemented here");
+                case 1: // Add Song
+                    musicCollectionUI.addSong();
                     enterToContinue();
                     break;
-                case 2:
-                    // Add Album işlemleri
-                    clearScreen();
-                    out.println("Add Album functionality will be implemented here");
+                case 2: // Add Album
+                    musicCollectionUI.addAlbum();
                     enterToContinue();
                     break;
-                case 3:
-                    // Add Artist işlemleri
-                    clearScreen();
-                    out.println("Add Artist functionality will be implemented here");
+                case 3: // Add Artist
+                    musicCollectionUI.addArtist();
                     enterToContinue();
                     break;
-                case 4:
-                    // View Songs işlemleri
-                    clearScreen();
-                    out.println("View Songs functionality will be implemented here");
+                case 4: // View Songs
+                    musicCollectionUI.viewSongs();
                     enterToContinue();
                     break;
-                case 5:
-                    // View Albums işlemleri
-                    clearScreen();
-                    out.println("View Albums functionality will be implemented here");
+                case 5: // View Albums
+                    musicCollectionUI.viewAlbums();
                     enterToContinue();
                     break;
-                case 6:
-                    // View Artists işlemleri
-                    clearScreen();
-                    out.println("View Artists functionality will be implemented here");
+                case 6: // View Artists
+                    musicCollectionUI.viewArtists();
                     enterToContinue();
                     break;
                 default:
@@ -369,7 +381,7 @@ public class Music {
         }
     }
 
-    // Diğer menü işlemleri için gerekli metotlar
+    // PlaylistsMenu metodunu güncelleyin
     public void playlistsMenu() {
         int choice;
 
@@ -384,24 +396,18 @@ public class Music {
             }
 
             switch (choice) {
-                case 0: // Ana menüye dön
+                case 0: // Return to main menu
                     return;
-                case 1:
-                    // İlgili işlemler
-                    clearScreen();
-                    out.println("First playlist option functionality will be implemented here");
+                case 1: // Create Playlist
+                    playlistUI.createPlaylist();
                     enterToContinue();
                     break;
-                case 2:
-                    // İlgili işlemler
-                    clearScreen();
-                    out.println("Second playlist option functionality will be implemented here");
+                case 2: // View Playlists
+                    playlistUI.viewPlaylists();
                     enterToContinue();
                     break;
-                case 3:
-                    // İlgili işlemler
-                    clearScreen();
-                    out.println("Third playlist option functionality will be implemented here");
+                case 3: // Edit Playlist
+                    playlistUI.editPlaylist();
                     enterToContinue();
                     break;
                 default:
@@ -427,24 +433,18 @@ public class Music {
             }
 
             switch (choice) {
-                case 0: // Ana menüye dön
+                case 0: // Return to main menu
                     return;
-                case 1:
-                    // Edit Artist işlemleri
-                    clearScreen();
-                    out.println("Edit Artist functionality will be implemented here");
+                case 1: // Edit Artist
+                    metadataEditingUI.editArtist();
                     enterToContinue();
                     break;
-                case 2:
-                    // Edit Album işlemleri
-                    clearScreen();
-                    out.println("Edit Album functionality will be implemented here");
+                case 2: // Edit Album
+                    metadataEditingUI.editAlbum();
                     enterToContinue();
                     break;
-                case 3:
-                    // Edit Genre işlemleri
-                    clearScreen();
-                    out.println("Edit Genre functionality will be implemented here");
+                case 3: // Edit Song Genre
+                    metadataEditingUI.editSongGenre();
                     enterToContinue();
                     break;
                 default:
@@ -510,9 +510,18 @@ public class Music {
         enterToContinue();
     }
 
+    // mainMenu metodunun içini şu şekilde güncelleyin
     public void mainMenu(String libraryFilePath) {
-        // Load data from file or initialize if not exists
+        // Load user data
         loadLibraryData(libraryFilePath);
+
+        // Load music collection data
+        String artistFile = DATA_DIR + "artists.dat";
+        String albumFile = DATA_DIR + "albums.dat";
+        String songFile = DATA_DIR + "songs.dat";
+        String playlistFile = DATA_DIR + "playlists.dat";
+
+        musicService.loadData(artistFile, albumFile, songFile, playlistFile);
 
         // Display login/register menu first
         if (displayOpeningScreen()) {
@@ -522,6 +531,7 @@ public class Music {
 
         // Save data before exiting
         saveLibraryData(libraryFilePath);
+        musicService.saveData(artistFile, albumFile, songFile, playlistFile);
     }
 
     private void loadLibraryData(String filePath) {
