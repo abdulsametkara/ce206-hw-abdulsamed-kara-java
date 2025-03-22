@@ -1,5 +1,10 @@
 package com.samet.music;
 
+import com.samet.music.exception.EntityNotFoundException;
+import com.samet.music.exception.FeatureNotImplementedException;
+import com.samet.music.exception.InvalidEntityDataException;
+import com.samet.music.exception.MusicLibraryException;
+
 /**
  * Exception handler utility class
  */

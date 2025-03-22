@@ -1,5 +1,9 @@
 package com.samet.music;
 
+import com.samet.music.exception.DatabaseOperationException;
+import com.samet.music.exception.ResourceNotFoundException;
+import com.samet.music.exception.ValidationException;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

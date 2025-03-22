@@ -131,7 +131,7 @@
 								<transformer
 									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<mainClass>
-										com.samet.music.MusicApp</mainClass>
+										com.samet.music.main.MusicApp</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>
