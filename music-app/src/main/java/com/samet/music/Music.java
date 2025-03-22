@@ -25,7 +25,7 @@ public class Music {
     private MetadataEditingUI metadataEditingUI;
     private RecommendationUI recommendationUI;
     private MusicRecommendationSystem recommendationSystem;
-
+    private UserDAO userDAO;
 
     /**
      * @brief Test mode flag.
@@ -46,12 +46,13 @@ public class Music {
         this.recommendationUI = new RecommendationUI(inputScanner, out);
         this.recommendationSystem = MusicRecommendationSystem.getInstance();
 
-
+        // Initialize user DAO
+        this.userDAO = new UserDAO();
+        this.userDAO.createTable();  // Kullanıcı tablosunu oluştur veya kontrol et
 
         // Create data directory if it doesn't exist
         createDataDirectory();
     }
-
     private void createDataDirectory() {
         File directory = new File(DATA_DIR);
         if (!directory.exists()) {
@@ -64,6 +65,53 @@ public class Music {
         out.flush();
     }
 
+    /**
+     * Displays a stylish message box
+     * @param message The message to display
+     * @param type The type of message (success, error, info)
+     */
+    public void showMessage(String message, String type) {
+        String color;
+        String prefix;
+
+        if (type.equalsIgnoreCase("success")) {
+            color = "\033[32m"; // Green
+            prefix = "✓ ";
+        } else if (type.equalsIgnoreCase("error")) {
+            color = "\033[31m"; // Red
+            prefix = "✗ ";
+        } else {
+            color = "\033[36m"; // Cyan
+            prefix = "ℹ ";
+        }
+
+        String reset = "\033[0m";
+
+        int width = message.length() + 6;
+        String border = "+" + "=".repeat(width) + "+";
+        String empty = "|" + " ".repeat(width) + "|";
+
+        out.println();
+        out.println(color + border + reset);
+        out.println(color + empty + reset);
+        out.println(color + "|   " + prefix + message + "   |" + reset);
+        out.println(color + empty + reset);
+        out.println(color + border + reset);
+        out.println();
+    }
+
+    /**
+     * Displays a stylish title for a screen
+     * @param title The title to display
+     */
+    public void showTitle(String title) {
+        int width = title.length() + 4;
+        String border = "=" + "=".repeat(width) + "=";
+
+        out.println("\n" + border);
+        out.println("| " + title + " |");
+        out.println(border + "\n");
+    }
 
     public int getInput() {
         try {
@@ -132,6 +180,9 @@ public class Music {
         out.println("4. View Songs");
         out.println("5. View Albums");
         out.println("6. View Artists");
+        out.println("7. Delete Song");
+        out.println("8. Delete Albums");
+        out.println("9. Delete Artist");
         out.println("0. Back to Main Menu");
         out.println("========================================");
         out.print("Please enter your choice: ");
@@ -226,7 +277,8 @@ public class Music {
         }
 
         // Kullanıcı adının kayıtlı olup olmadığını kontrol et
-        if (!userCredentials.containsKey(username)) {
+        String savedPassword = userDAO.getPassword(username);
+        if (savedPassword == null) {
             clearScreen();
             out.println("Login failed. User not found.");
             enterToContinue();
@@ -234,7 +286,7 @@ public class Music {
         }
 
         // Şifre kontrolü
-        if (!userCredentials.get(username).equals(password)) {
+        if (!savedPassword.equals(password)) {
             clearScreen();
             out.println("Login failed. Incorrect password.");
             enterToContinue();
@@ -250,9 +302,7 @@ public class Music {
         return true;
     }
 
-    /**
-     * Processes user registration
-     */
+
     private void registerUser() {
         clearScreen();
         Scanner in = new Scanner(System.in);
@@ -286,17 +336,23 @@ public class Music {
             return;
         }
 
-        if (userCredentials.containsKey(username)) {
+        if (userDAO.userExists(username)) {
             clearScreen();
             out.println("Registration failed. Username already exists.");
             enterToContinue();
             return;
         }
 
-        userCredentials.put(username, password);
+        // Kullanıcıyı veritabanına kaydet
+        boolean success = userDAO.saveUser(username, password);
 
-        clearScreen();
-        out.println("Registration successful! You can now login.");
+        if (success) {
+            clearScreen();
+            out.println("Registration successful! You can now login.");
+        } else {
+            clearScreen();
+            out.println("Registration failed due to database error. Please try again.");
+        }
         enterToContinue();
     }
 
@@ -312,7 +368,7 @@ public class Music {
             }
             switch (choice) {
                 case 1:
-                    musicCollectionMenu(); // Sadece menüyü göstermek yerine işlem yapan metodu çağır
+                    musicCollectionMenu();
                     break;
                 case 2:
                     playlistsMenu();
@@ -335,7 +391,6 @@ public class Music {
         }
     }
 
-    // musicCollectionMenu metodunu şu şekilde güncelleyin
     public void musicCollectionMenu() {
         int choice;
 
@@ -374,6 +429,18 @@ public class Music {
                     break;
                 case 6: // View Artists
                     musicCollectionUI.viewArtists();
+                    enterToContinue();
+                    break;
+                case 7: // Delete Song
+                    musicCollectionUI.deleteSong();
+                    enterToContinue();
+                    break;
+                case 8: // Delete Album
+                    musicCollectionUI.deleteAlbum();
+                    enterToContinue();
+                    break;
+                case 9: // Delete Artist
+                    musicCollectionUI.deleteArtist();
                     enterToContinue();
                     break;
                 default:
@@ -508,10 +575,9 @@ public class Music {
         enterToContinue();
     }
 
-    // mainMenu metodunun içini şu şekilde güncelleyin
     public void mainMenu(String libraryFilePath) {
-        // Load user data
-        loadLibraryData(libraryFilePath);
+        // Veritabanlarını hazırla
+        DatabaseUtil.initializeDatabase();
 
         // Load music collection data
         String artistFile = DATA_DIR + "artists.dat";
@@ -530,7 +596,6 @@ public class Music {
         }
 
         // Save data before exiting
-        saveLibraryData(libraryFilePath);
         musicService.saveData(artistFile, albumFile, songFile, playlistFile);
         recommendationSystem.saveRecommendationData(recommendationFile);
     }
