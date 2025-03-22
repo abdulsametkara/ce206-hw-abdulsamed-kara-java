@@ -9,225 +9,259 @@ import java.util.List;
 
 public class PlaylistDAO {
     private SongDAO songDAO = new SongDAO();
+    private static final Object LOCK = new Object();
+
 
     public void insert(Playlist playlist) {
-        String sql = "INSERT INTO playlists (id, name, description) VALUES (?, ?, ?)";
+        synchronized (LOCK) {
+            String sql = "INSERT INTO playlists (id, name, description) VALUES (?, ?, ?)";
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, playlist.getId());
-            pstmt.setString(2, playlist.getName());
-            pstmt.setString(3, playlist.getDescription());
+                pstmt.setString(1, playlist.getId());
+                pstmt.setString(2, playlist.getName());
+                pstmt.setString(3, playlist.getDescription());
 
-            pstmt.executeUpdate();
+                pstmt.executeUpdate();
 
-            // Şarkıları playlist_songs tablosuna ekle
-            for (Song song : playlist.getSongs()) {
-                insertPlaylistSong(playlist.getId(), song.getId());
+                // Şarkıları playlist_songs tablosuna ekle
+                for (Song song : playlist.getSongs()) {
+                    insertPlaylistSong(playlist.getId(), song.getId());
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
     private void insertPlaylistSong(String playlistId, String songId) {
-        String sql = "INSERT OR IGNORE INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String sql = "INSERT OR IGNORE INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
 
-            pstmt.setString(1, playlistId);
-            pstmt.setString(2, songId);
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+                pstmt.setString(1, playlistId);
+                pstmt.setString(2, songId);
+
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public Playlist getById(String id) {
-        String sql = "SELECT * FROM playlists WHERE id = ?";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String sql = "SELECT * FROM playlists WHERE id = ?";
 
-            pstmt.setString(1, id);
-            ResultSet rs = pstmt.executeQuery();
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            if (rs.next()) {
-                Playlist playlist = new Playlist(rs.getString("name"));
-                playlist.setDescription(rs.getString("description"));
+                pstmt.setString(1, id);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        Playlist playlist = new Playlist(rs.getString("name"));
+                        playlist.setDescription(rs.getString("description"));
 
-                // Playlistin şarkılarını getir
-                List<Song> songs = getPlaylistSongs(id);
-                for (Song song : songs) {
-                    playlist.addSong(song);
+                        // Playlistin şarkılarını getir
+                        List<Song> songs = getPlaylistSongs(id);
+                        for (Song song : songs) {
+                            playlist.addSong(song);
+                        }
+
+                        return playlist;
+                    }
                 }
-
-                return playlist;
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
 
-        return null;
+            return null;
+        }
     }
 
     private List<Song> getPlaylistSongs(String playlistId) {
-        List<Song> songs = new ArrayList<>();
-        String sql = "SELECT song_id FROM playlist_songs WHERE playlist_id = ?";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            List<Song> songs = new ArrayList<>();
+            String sql = "SELECT song_id FROM playlist_songs WHERE playlist_id = ?";
 
-            pstmt.setString(1, playlistId);
-            ResultSet rs = pstmt.executeQuery();
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                Song song = songDAO.getById(rs.getString("song_id"));
-                if (song != null) {
-                    songs.add(song);
+                pstmt.setString(1, playlistId);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        Song song = songDAO.getById(rs.getString("song_id"));
+                        if (song != null) {
+                            songs.add(song);
+                        }
+                    }
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
 
-        return songs;
+            return songs;
+        }
     }
 
     public List<Playlist> getAll() {
-        List<Playlist> playlists = new ArrayList<>();
-        String sql = "SELECT * FROM playlists";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
+            List<Playlist> playlists = new ArrayList<>();
+            String sql = "SELECT * FROM playlists";
 
-            while (rs.next()) {
-                Playlist playlist = new Playlist(rs.getString("name"));
-                playlist.setDescription(rs.getString("description"));
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql);
+                 ResultSet rs = pstmt.executeQuery()) {
 
-                // Playlistin şarkılarını getir
-                List<Song> songs = getPlaylistSongs(rs.getString("id"));
-                for (Song song : songs) {
-                    playlist.addSong(song);
+                while (rs.next()) {
+                    Playlist playlist = new Playlist(rs.getString("name"));
+                    playlist.setDescription(rs.getString("description"));
+
+                    // Playlistin şarkılarını getir
+                    List<Song> songs = getPlaylistSongs(rs.getString("id"));
+                    for (Song song : songs) {
+                        playlist.addSong(song);
+                    }
+
+                    playlists.add(playlist);
                 }
-
-                playlists.add(playlist);
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
 
-        return playlists;
+            return playlists;
+        }
     }
 
     public void update(Playlist playlist) {
-        String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
 
-            pstmt.setString(1, playlist.getName());
-            pstmt.setString(2, playlist.getDescription());
-            pstmt.setString(3, playlist.getId());
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.executeUpdate();
+                pstmt.setString(1, playlist.getName());
+                pstmt.setString(2, playlist.getDescription());
+                pstmt.setString(3, playlist.getId());
 
-            // Önce mevcut şarkıları sil
-            deletePlaylistSongs(playlist.getId());
+                pstmt.executeUpdate();
 
-            // Yeni şarkıları ekle
-            for (Song song : playlist.getSongs()) {
-                insertPlaylistSong(playlist.getId(), song.getId());
+                // Önce mevcut şarkıları sil
+                deletePlaylistSongs(playlist.getId());
+
+                // Yeni şarkıları ekle
+                for (Song song : playlist.getSongs()) {
+                    insertPlaylistSong(playlist.getId(), song.getId());
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
     private void deletePlaylistSongs(String playlistId) {
-        String sql = "DELETE FROM playlist_songs WHERE playlist_id = ?";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String sql = "DELETE FROM playlist_songs WHERE playlist_id = ?";
 
-            pstmt.setString(1, playlistId);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, playlistId);
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public void delete(String id) {
-        // Önce playlist_songs tablosundan şarkıları sil
-        deletePlaylistSongs(id);
+        synchronized (LOCK) {
 
-        // Sonra playlist'i sil
-        String sql = "DELETE FROM playlists WHERE id = ?";
+            // Önce playlist_songs tablosundan şarkıları sil
+            deletePlaylistSongs(id);
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            // Sonra playlist'i sil
+            String sql = "DELETE FROM playlists WHERE id = ?";
 
-            pstmt.setString(1, id);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, id);
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public void addSongToPlaylist(String playlistId, String songId) {
-        String sql = "INSERT OR IGNORE INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String sql = "INSERT OR IGNORE INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
 
-            pstmt.setString(1, playlistId);
-            pstmt.setString(2, songId);
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+                pstmt.setString(1, playlistId);
+                pstmt.setString(2, songId);
+
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public void removeSongFromPlaylist(String playlistId, String songId) {
-        String sql = "DELETE FROM playlist_songs WHERE playlist_id = ? AND song_id = ?";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String sql = "DELETE FROM playlist_songs WHERE playlist_id = ? AND song_id = ?";
 
-            pstmt.setString(1, playlistId);
-            pstmt.setString(2, songId);
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+                pstmt.setString(1, playlistId);
+                pstmt.setString(2, songId);
+
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     public List<Playlist> getPlaylistsContainingSong(Song song) {
-        List<Playlist> playlists = new ArrayList<>();
-        String sql = "SELECT playlist_id FROM playlist_songs WHERE song_id = ?";
+        synchronized (LOCK) {
 
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            List<Playlist> playlists = new ArrayList<>();
+            String sql = "SELECT playlist_id FROM playlist_songs WHERE song_id = ?";
 
-            pstmt.setString(1, song.getId());
-            ResultSet rs = pstmt.executeQuery();
+            try (Connection conn = DatabaseUtil.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                Playlist playlist = getById(rs.getString("playlist_id"));
-                if (playlist != null) {
-                    playlists.add(playlist);
+                pstmt.setString(1, song.getId());
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        Playlist playlist = getById(rs.getString("playlist_id"));
+                        if (playlist != null) {
+                            playlists.add(playlist);
+                        }
+                    }
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
 
-        return playlists;
+            return playlists;
+        }
     }
 }

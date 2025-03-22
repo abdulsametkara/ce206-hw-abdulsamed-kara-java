@@ -57,6 +57,19 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
         return removed;
     }
 
+    @Override
+    protected void loadFromDatabase() {
+        clear(); // Önce mevcut öğeleri temizle
+
+        // Veritabanından çalma listelerini yükle
+        List<Playlist> playlists = playlistDAO.getAll();
+
+        // Koleksiyona ekle
+        for (Playlist playlist : playlists) {
+            super.add(playlist);
+        }
+    }
+
     public List<Playlist> searchByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             return new ArrayList<>();

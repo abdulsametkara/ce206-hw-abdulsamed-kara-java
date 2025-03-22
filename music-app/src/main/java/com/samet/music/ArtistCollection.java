@@ -66,6 +66,19 @@ public class ArtistCollection extends MusicCollectionManager<Artist> {
         return removed;
     }
 
+    @Override
+    protected void loadFromDatabase() {
+        clear(); // Önce mevcut öğeleri temizle
+
+        // Veritabanından sanatçıları yükle
+        List<Artist> artists = artistDAO.getAll();
+
+        // Koleksiyona ekle
+        for (Artist artist : artists) {
+            super.add(artist);
+        }
+    }
+
     public List<Artist> searchByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             return new ArrayList<>();

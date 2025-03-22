@@ -9,6 +9,8 @@ import java.util.*;
  */
 public abstract class MusicCollectionManager<T> implements IMusicCollection<T> {
     protected Map<String, T> items = new HashMap<>();
+    // Veritabanı yükleme durumunu takip etmek için flag
+    protected boolean isLoaded = false;
 
     @Override
     public void add(T item) {
@@ -32,12 +34,18 @@ public abstract class MusicCollectionManager<T> implements IMusicCollection<T> {
 
     @Override
     public List<T> getAll() {
+        // Eğer daha önce yükleme yapılmadıysa, veritabanından yükle
+        if (!isLoaded) {
+            loadFromDatabase();
+            isLoaded = true;
+        }
         return new ArrayList<>(items.values());
     }
 
     @Override
     public void clear() {
         items.clear();
+        isLoaded = false;
     }
 
     @Override
@@ -71,12 +79,19 @@ public abstract class MusicCollectionManager<T> implements IMusicCollection<T> {
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             items = (Map<String, T>) ois.readObject();
+            isLoaded = true;
             return true;
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error loading collection from file: " + e.getMessage());
             return false;
         }
     }
+
+    /**
+     * Veritabanından yükleme yapar
+     * Bu metot alt sınıflar tarafından uygulanmalıdır
+     */
+    protected abstract void loadFromDatabase();
 
     protected abstract String getItemId(T item);
 }
