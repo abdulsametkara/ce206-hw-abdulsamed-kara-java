@@ -41,10 +41,16 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
         Playlist playlist = super.getById(id);
 
         if (playlist == null) {
+            System.out.println("PlaylistCollection: Playlist not found in memory cache, trying database...");
             playlist = playlistDAO.getById(id);
             if (playlist != null) {
+                System.out.println("PlaylistCollection: Found playlist in database, adding to memory cache");
                 super.add(playlist);
+            } else {
+                System.out.println("PlaylistCollection: Playlist not found in database either");
             }
+        } else {
+            System.out.println("PlaylistCollection: Found playlist in memory cache");
         }
 
         return playlist;

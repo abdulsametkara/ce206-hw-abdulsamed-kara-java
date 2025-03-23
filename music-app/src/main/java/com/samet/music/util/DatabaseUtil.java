@@ -1,5 +1,6 @@
 package com.samet.music.util;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -13,6 +14,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class DatabaseUtil {
     private static final String DB_URL = "jdbc:sqlite:music_library.db";
+    // Varsayılan veritabanı konumunu kullanıcının ev dizinine taşıyalım
+    private static final String DB_FILE_PATH = System.getProperty("user.home") + "/music_library.db";
+    private static final String DB_NEW_URL = "jdbc:sqlite:" + DB_FILE_PATH;
+
     private static boolean isInitialized = false;
     private static final ConcurrentLinkedQueue<Connection> connectionPool = new ConcurrentLinkedQueue<>();
     private static final int MAX_POOL_SIZE = 10;
@@ -20,24 +25,25 @@ public class DatabaseUtil {
     // Flag for database reset
     private static boolean shouldResetDatabase = false;
 
-    /**
-     * Get database connection
-     * @return Database connection
-     * @throws SQLException Connection error
-     */
     public static Connection getConnection() throws SQLException {
-        Connection conn = DriverManager.getConnection(DB_URL);
+        try {
+            // Yeni bağlantı URL'sini kullan
+            Connection conn = DriverManager.getConnection(DB_NEW_URL);
 
-        // Kilit zaman aşımını ve kilit modunu ayarla
-        try (Statement stmt = conn.createStatement()) {
-            // Eşzamanlı veritabanı erişimi için ayarlar
-            stmt.execute("PRAGMA journal_mode=WAL");    // Write-Ahead Logging modunu etkinleştir
-            stmt.execute("PRAGMA synchronous=NORMAL");  // Normal senkronizasyon (performans/güvenlik dengesi)
-            stmt.execute("PRAGMA busy_timeout=5000");   // Kilit zaman aşımını 5 saniye olarak ayarla
-            stmt.execute("PRAGMA foreign_keys=ON");     // Yabancı anahtar kısıtlamalarını etkinleştir
+            // Kilit zaman aşımını ve kilit modunu ayarla
+            try (Statement stmt = conn.createStatement()) {
+                // Eşzamanlı veritabanı erişimi için ayarlar
+                stmt.execute("PRAGMA journal_mode=WAL");    // Write-Ahead Logging modunu etkinleştir
+                stmt.execute("PRAGMA synchronous=NORMAL");  // Normal senkronizasyon (performans/güvenlik dengesi)
+                stmt.execute("PRAGMA busy_timeout=5000");   // Kilit zaman aşımını 5 saniye olarak ayarla
+                stmt.execute("PRAGMA foreign_keys=ON");     // Yabancı anahtar kısıtlamalarını etkinleştir
+            }
+
+            return conn;
+        } catch (SQLException e) {
+            System.err.println("Veritabanı bağlantısı oluşturulamadı: " + e.getMessage());
+            throw e;
         }
-
-        return conn;
     }
 
     public static void releaseConnection(Connection conn) {
@@ -68,37 +74,32 @@ public class DatabaseUtil {
             return;
         }
 
-        try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement()) {
-
-            // Create tables if they don't exist
-            setupTables(stmt);
-
-            // Clean up and add sample data
-            if (shouldResetDatabase) {
-                clearAllData(conn); // Clear test data
-                // Don't insert sample data automatically
-                System.out.println("Database reset. Ready for your own data.");
-            } else {
-                // Clear only test data
-                clearTestData(conn);
-
-                // Check if there's any data
-                boolean hasAnyData = checkIfDataExists(conn);
-
-                if (!hasAnyData) {
-                    // Don't insert sample data
-                    System.out.println("No data in database. Ready for your own entries.");
-                }
+        try {
+            // Veritabanı dosyasının olup olmadığını kontrol et
+            File dbFile = new File(DB_FILE_PATH);
+            if (!dbFile.exists()) {
+                // Dosya yoksa, dizini oluştur
+                dbFile.getParentFile().mkdirs();
+            } else if (shouldResetDatabase || dbFile.length() == 0) {
+                // Eğer dosya sıfırlanacaksa veya boşsa, dosyayı sil ve yeniden oluştur
+                dbFile.delete();
             }
 
-            isInitialized = true;
+            // Yeni bir bağlantı al ve tabloları oluştur
+            try (Connection conn = getConnection();
+                 Statement stmt = conn.createStatement()) {
 
+                // Create tables if they don't exist
+                setupTables(stmt);
+
+                isInitialized = true;
+            }
         } catch (SQLException e) {
             System.err.println("Error initializing database: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
 
     /**
      * Set up database tables
