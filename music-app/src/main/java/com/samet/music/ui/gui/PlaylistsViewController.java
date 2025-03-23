@@ -1,5 +1,6 @@
 package com.samet.music.ui.gui;
 
+import com.samet.music.dao.PlaylistDAO;
 import com.samet.music.model.Playlist;
 import com.samet.music.model.Song;
 import com.samet.music.service.MusicCollectionService;
@@ -165,14 +166,33 @@ public class PlaylistsViewController {
     private void handleDeletePlaylist() {
         Playlist selectedPlaylist = playlistsTable.getSelectionModel().getSelectedItem();
         if (selectedPlaylist != null) {
-            if (confirmDelete("Delete Playlist",
-                    "Are you sure you want to delete the playlist '" + selectedPlaylist.getName() + "'?")) {
-                boolean success = service.removePlaylist(selectedPlaylist.getId());
-                if (success) {
+            try {
+                if (confirmDelete("Delete Playlist",
+                        "Are you sure you want to delete the playlist '" + selectedPlaylist.getName() + "'?")) {
+
+                    System.out.println("Attempting to delete playlist: " + selectedPlaylist.getId());
+
+                    // PlaylistDAO'yu doğrudan kullanarak silelim
+                    PlaylistDAO playlistDAO = new PlaylistDAO();
+                    playlistDAO.delete(selectedPlaylist.getId());
+
+                    // Servis metodunu da çağıralım (çift güvenlik)
+                    boolean success = service.removePlaylist(selectedPlaylist.getId());
+
+                    // Her halükarda GUI'yi güncelleyelim
                     refreshData();
-                } else {
-                    showErrorAlert("Error", "Failed to delete the playlist");
+
+                    // Kullanıcıya bilgi verelim
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Playlist Deleted");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Playlist '" + selectedPlaylist.getName() + "' has been deleted.");
+                    alert.showAndWait();
                 }
+            } catch (Exception e) {
+                System.err.println("Error in handleDeletePlaylist: " + e.getMessage());
+                e.printStackTrace();
+                showErrorAlert("Error", "Failed to delete the playlist: " + e.getMessage());
             }
         }
     }

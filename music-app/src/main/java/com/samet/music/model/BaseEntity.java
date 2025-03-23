@@ -3,16 +3,20 @@ package com.samet.music.model;
 import java.io.Serializable;
 import java.util.UUID;
 
-/**
- * Abstract base class for all music library entities
- */
 public abstract class BaseEntity implements Serializable {
-    private final String id;
+    private String id;
     private String name;
 
     public BaseEntity(String name) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
+    }
+
+    // ID'yi açıkça ayarlama imkanı ekleyelim
+    public void setId(String id) {
+        if (id != null && !id.isEmpty()) {
+            this.id = id;
+        }
     }
 
     public String getId() {
