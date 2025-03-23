@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.samet.music.ui.gui.MusicCollectionViewController"
+      spacing="10" style="-fx-padding: 10;">
+    
+    <HBox spacing="10">
+        <Button text="Add Song" onAction="#handleAddSong"/>
+        <Button text="Add Album" onAction="#handleAddAlbum"/>
+        <Button text="Add Artist" onAction="#handleAddArtist"/>
+    </HBox>
+    
+    <TabPane VBox.vgrow="ALWAYS">
+        <Tab text="Songs">
+            <TableView fx:id="songsTable">
+                <columns>
+                    <TableColumn fx:id="songNameColumn" text="Name"/>
+                    <TableColumn fx:id="songArtistColumn" text="Artist"/>
+                    <TableColumn fx:id="songDurationColumn" text="Duration"/>
+                    <TableColumn fx:id="songAlbumColumn" text="Album"/>
+                    <TableColumn fx:id="songGenreColumn" text="Genre"/>
+                </columns>
+            </TableView>
+        </Tab>
+        <Tab text="Albums">
+            <TableView fx:id="albumsTable">
+                <columns>
+                    <TableColumn fx:id="albumNameColumn" text="Name"/>
+                    <TableColumn fx:id="albumArtistColumn" text="Artist"/>
+                    <TableColumn fx:id="albumYearColumn" text="Year"/>
+                    <TableColumn fx:id="albumGenreColumn" text="Genre"/>
+                </columns>
+            </TableView>
+        </Tab>
+        <Tab text="Artists">
+            <TableView fx:id="artistsTable">
+                <columns>
+                    <TableColumn fx:id="artistNameColumn" text="Name"/>
+                    <TableColumn fx:id="artistAlbumsColumn" text="Albums"/>
+                    <TableColumn fx:id="artistSongsColumn" text="Songs"/>
+                </columns>
+            </TableView>
+        </Tab>
+    </TabPane>
+    
+    <HBox spacing="10">
+        <Button text="Delete Selected" onAction="#handleDelete"/>
+        <Button text="Refresh" onAction="#handleRefresh"/>
+    </HBox>
+</VBox>

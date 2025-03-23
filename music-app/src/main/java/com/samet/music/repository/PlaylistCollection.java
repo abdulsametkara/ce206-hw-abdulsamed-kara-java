@@ -57,11 +57,24 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
 
     @Override
     public boolean remove(String id) {
-        boolean removed = super.remove(id);
-        playlistDAO.delete(id);
-        return removed;
-    }
+        try {
+            System.out.println("Removing playlist with ID: " + id);
 
+            // Önce ana koleksiyondan kaldır
+            boolean removed = super.remove(id);
+            System.out.println("Removed from memory collection: " + removed);
+
+            // Sonra DAO üzerinden sil
+            playlistDAO.delete(id);
+            System.out.println("Deleted from database through DAO");
+
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error in PlaylistCollection.remove: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
     @Override
     protected void loadFromDatabase() {
         clear(); // Önce mevcut öğeleri temizle

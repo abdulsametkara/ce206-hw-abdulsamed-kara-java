@@ -55,7 +55,17 @@ public class ArtistCollection extends MusicCollectionManager<Artist> {
     @Override
     public List<Artist> getAll() {
         // Veritabanından tüm sanatçıları çek
-        return artistDAO.getAll();
+        List<Artist> artists = artistDAO.getAll();
+
+        // Hafızadaki koleksiyonu temizle
+        clear();
+
+        // Tüm sanatçıları hafızaya ekle
+        for (Artist artist : artists) {
+            super.add(artist);
+        }
+
+        return new ArrayList<>(items.values());
     }
 
     @Override

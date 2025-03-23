@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.samet.music.ui.gui.ArtistDetailsDialogController"
+      spacing="10" style="-fx-padding: 20;" prefWidth="700" prefHeight="500">
+    
+    <Label fx:id="artistNameLabel" style="-fx-font-size: 24; -fx-font-weight: bold;"/>
+    
+    <Label text="Biography:" style="-fx-font-weight: bold;"/>
+    <TextArea fx:id="biographyTextArea" wrapText="true" editable="false" prefHeight="100"/>
+    
+    <Label text="Albums:" style="-fx-font-weight: bold;"/>
+    <TableView fx:id="albumsTable" prefHeight="150">
+        <columns>
+            <TableColumn fx:id="albumNameColumn" text="Name" prefWidth="300"/>
+            <TableColumn fx:id="albumYearColumn" text="Year" prefWidth="100"/>
+            <TableColumn fx:id="albumGenreColumn" text="Genre" prefWidth="200"/>
+        </columns>
+    </TableView>
+    
+    <Label text="Popular Songs:" style="-fx-font-weight: bold;"/>
+    <TableView fx:id="popularSongsTable" prefHeight="150">
+        <columns>
+            <TableColumn fx:id="songNameColumn" text="Name" prefWidth="300"/>
+            <TableColumn fx:id="songDurationColumn" text="Duration" prefWidth="100"/>
+            <TableColumn fx:id="songAlbumColumn" text="Album" prefWidth="200"/>
+        </columns>
+    </TableView>
+    
+    <Button text="Close" onAction="#handleClose" alignment="CENTER_RIGHT"/>
+</VBox>

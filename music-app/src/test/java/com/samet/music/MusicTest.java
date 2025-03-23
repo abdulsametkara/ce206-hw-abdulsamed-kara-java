@@ -1267,7 +1267,7 @@ public class MusicTest {
 
       // Çıktıyı kontrol et
       String output = outContent.toString();
-    
+
     } finally {
       // Kaynakları her durumda temizle
       System.setIn(originalIn);

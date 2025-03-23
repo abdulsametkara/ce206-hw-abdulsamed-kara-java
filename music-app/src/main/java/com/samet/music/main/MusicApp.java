@@ -1,4 +1,5 @@
 package com.samet.music.main;
+import com.samet.music.ui.gui.MusicLibraryApp;
 import com.samet.music.util.DatabaseUtil;
 
 import java.util.Scanner;
@@ -15,6 +16,9 @@ public class MusicApp {
 
     // Veritabanını başlat
     DatabaseUtil.initializeDatabase();
+
+    MusicLibraryApp.main(args);
+
 
     // Create an instance of the Music class
     Music music = new Music(inputScanner, System.out);

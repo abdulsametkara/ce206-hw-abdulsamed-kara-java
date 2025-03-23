@@ -7,10 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ArtistDAO {
     private static final Object LOCK = new Object();
@@ -101,10 +98,11 @@ public class ArtistDAO {
         }
     }
 
+    // ArtistDAO sınıfında getAll metodunda şu değişikliği yapın:
     public List<Artist> getAll() {
         synchronized (LOCK) {
-
             List<Artist> artists = new ArrayList<>();
+            Map<String, Artist> uniqueArtists = new HashMap<>(); // Benzersiz sanatçıları saklamak için
             String sql = "SELECT * FROM artists";
 
             try (Connection conn = DatabaseUtil.getConnection();
@@ -119,27 +117,26 @@ public class ArtistDAO {
                     String name = rs.getString("name");
                     String biography = rs.getString("biography");
 
-                    // Eğer bu ID zaten önbellekte varsa, onu kullan
-                    if (artistCache.containsKey(id)) {
-                        artists.add(artistCache.get(id));
-                        continue;
+                    // Bir sanatçıyı sadece bir kez işle
+                    if (!uniqueArtists.containsKey(id)) {
+                        // Yeni Artist nesnesi oluştur ama ID'yi koru
+                        final String finalId = id;
+                        Artist artist = new Artist(name, biography) {
+                            @Override
+                            public String getId() {
+                                return finalId; // UUID oluşturma yerine veritabanındaki ID'yi kullan
+                            }
+                        };
+
+                        // Önbelleğe ve benzersiz sanatçılar map'ine ekle
+                        artistCache.put(id, artist);
+                        uniqueArtists.put(id, artist);
                     }
-
-                    // Yeni Artist nesnesi oluştur ama ID'yi koru
-                    final String finalId = id;
-                    Artist artist = new Artist(name, biography) {
-                        @Override
-                        public String getId() {
-                            return finalId; // UUID oluşturma yerine veritabanındaki ID'yi kullan
-                        }
-                    };
-
-                    // Önbelleğe ekle
-                    artistCache.put(id, artist);
-                    artists.add(artist);
                 }
 
-                // Sadece konsolda görünecek debug mesajı
+                // Benzersiz sanatçıları listeye ekle
+                artists.addAll(uniqueArtists.values());
+
                 System.out.println("[DEBUG] Retrieved " + artists.size() + " unique artists from database.");
             } catch (SQLException e) {
                 System.err.println("[ERROR] Failed to retrieve artists: " + e.getMessage());
