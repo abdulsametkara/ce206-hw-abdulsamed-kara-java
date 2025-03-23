@@ -588,15 +588,20 @@ public class MusicCollectionService {
     }
 
     public List<Artist> getAllArtists() {
+        // Sanatçı listesini al ve duplikasyonları temizle
         List<Artist> allArtists = artistCollection.getAll();
 
-        // Benzersiz artist listesi oluştur (ID'ye göre)
-        Map<String, Artist> uniqueArtistsMap = new HashMap<>();
+        // Unique olan sanatçıları elde etmek için bir Map kullan
+        Map<String, Artist> uniqueArtistsById = new HashMap<>();
         for (Artist artist : allArtists) {
-            uniqueArtistsMap.put(artist.getId(), artist);
+            uniqueArtistsById.put(artist.getId(), artist);
         }
 
-        return new ArrayList<>(uniqueArtistsMap.values());
+        // ID'ye göre filtrelenmiş listeyi döndür
+        List<Artist> uniqueArtists = new ArrayList<>(uniqueArtistsById.values());
+
+        System.out.println("GetAllArtists returning " + uniqueArtists.size() + " unique artists");
+        return uniqueArtists;
     }
 
     public boolean addPlaylist(Playlist playlist) {

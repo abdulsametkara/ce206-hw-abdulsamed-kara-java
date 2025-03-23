@@ -1,5 +1,6 @@
 package com.samet.music.ui.gui;
 
+import com.samet.music.dao.ArtistDAO;
 import com.samet.music.model.Album;
 import com.samet.music.model.Artist;
 import com.samet.music.model.Song;
@@ -214,19 +215,24 @@ public class MetadataEditingViewController {
             selectedArtist.setName(name);
             selectedArtist.setBiography(biography);
 
-            // Sanatçıyı güncelle - normalde bir service metodu olmalı
-            try {
-                // Servis metoduyla güncelleme burada yapılmalı
-                // service.updateArtist(selectedArtist);
-                showInfoAlert("Success", "Artist information updated successfully");
+            // ArtistDAO'yu doğrudan kullanarak güncelleyelim
+            ArtistDAO artistDAO = new ArtistDAO();
+            artistDAO.update(selectedArtist);
 
-                // ComboBox'ı yenile
-                int selectedIndex = artistComboBox.getSelectionModel().getSelectedIndex();
-                List<Artist> artists = service.getAllArtists();
-                artistComboBox.setItems(FXCollections.observableArrayList(artists));
-                artistComboBox.getSelectionModel().select(selectedIndex);
-            } catch (Exception e) {
-                showErrorAlert("Error", "Failed to update artist: " + e.getMessage());
+            System.out.println("Updated artist in database: " + selectedArtist.getId() + " - " + name);
+
+            showInfoAlert("Success", "Artist information updated successfully");
+
+            // Tüm artist verilerini yeniden yükleyelim
+            List<Artist> artists = service.getAllArtists();
+            artistComboBox.setItems(FXCollections.observableArrayList(artists));
+
+            // Güncellenmiş sanatçıyı seçili hale getirelim
+            for (Artist artist : artists) {
+                if (artist.getId().equals(selectedArtist.getId())) {
+                    artistComboBox.getSelectionModel().select(artist);
+                    break;
+                }
             }
         }
     }
