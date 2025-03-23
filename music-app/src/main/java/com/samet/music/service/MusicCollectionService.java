@@ -267,6 +267,10 @@ public class MusicCollectionService {
 
         Playlist playlist = new Playlist(name, description);
         playlistCollection.add(playlist);
+
+        // Bu satırı ekleyelim - yeni oluşturulan playlist'in ID'sini loglayalım
+        System.out.println("Created new playlist: " + name + " with ID: " + playlist.getId());
+
         return true;
     }
 
@@ -330,11 +334,20 @@ public class MusicCollectionService {
     }
 
     public List<Song> getSongsInPlaylist(String playlistId) {
-        Playlist playlist = playlistCollection.getById(playlistId);
-        if (playlist == null) {
+        if (playlistId == null || playlistId.trim().isEmpty()) {
+            System.err.println("MusicCollectionService: Invalid playlist ID for getSongsInPlaylist");
             return Collections.emptyList();
         }
 
+        System.out.println("MusicCollectionService: Getting songs for playlist " + playlistId);
+
+        Playlist playlist = playlistCollection.getById(playlistId);
+        if (playlist == null) {
+            System.err.println("MusicCollectionService: Playlist with ID " + playlistId + " not found");
+            return Collections.emptyList();
+        }
+
+        // Mevcut implementasyonu kullan
         return playlist.getSongs();
     }
 
@@ -584,5 +597,15 @@ public class MusicCollectionService {
         }
 
         return new ArrayList<>(uniqueArtistsMap.values());
+    }
+
+    public boolean addPlaylist(Playlist playlist) {
+        if (playlist == null) {
+            return false;
+        }
+
+        System.out.println("Adding playlist with ID: " + playlist.getId());
+        playlistCollection.add(playlist);
+        return true;
     }
 }

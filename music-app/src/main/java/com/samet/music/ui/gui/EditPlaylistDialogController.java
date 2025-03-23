@@ -1,6 +1,8 @@
 package com.samet.music.ui.gui;
 
+import com.samet.music.dao.PlaylistDAO;
 import com.samet.music.model.Playlist;
+import com.samet.music.service.MusicCollectionService;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
@@ -15,6 +17,8 @@ public class EditPlaylistDialogController {
     private Stage dialogStage;
     private Playlist playlist;
     private boolean saved = false;
+    private MusicCollectionService service = MusicCollectionService.getInstance();
+    private PlaylistDAO playlistDAO = new PlaylistDAO(); // PlaylistDAO ekleyelim
 
     public void setDialogStage(Stage dialogStage) {
         this.dialogStage = dialogStage;
@@ -38,8 +42,12 @@ public class EditPlaylistDialogController {
             String name = nameField.getText().trim();
             String description = descriptionArea.getText().trim();
 
+            // Playlist nesnesini güncelle
             playlist.setName(name);
             playlist.setDescription(description);
+
+            // Veritabanında güncelle - Bu satırı ekledik
+            playlistDAO.update(playlist);
 
             saved = true;
             dialogStage.close();

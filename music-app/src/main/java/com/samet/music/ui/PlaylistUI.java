@@ -1,5 +1,6 @@
 package com.samet.music.ui;
 
+import com.samet.music.dao.PlaylistDAO;
 import com.samet.music.model.Playlist;
 import com.samet.music.model.Song;
 import com.samet.music.service.MusicCollectionService;
@@ -22,9 +23,6 @@ public class PlaylistUI {
         this.service = MusicCollectionService.getInstance();
     }
 
-    /**
-     * Handles creating a new playlist
-     */
     public void createPlaylist() {
         out.println("\n========== CREATE NEW PLAYLIST ==========");
 
@@ -39,12 +37,17 @@ public class PlaylistUI {
         out.print("Enter playlist description (optional): ");
         String description = scanner.nextLine().trim();
 
-        boolean success = service.createPlaylist(name, description);
+        // Burada bir Playlist nesnesi oluşturalım ve ID'sini saklayalım
+        Playlist newPlaylist = new Playlist(name, description);
+        String playlistId = newPlaylist.getId();
+
+        // Playlist'i service üzerinden ekleyelim, ancak direkt newPlaylist nesnesini geçelim
+        boolean success = service.addPlaylist(newPlaylist);  // Bu metodu MusicCollectionService'e eklemeliyiz
 
         if (success) {
             out.println("\nPlaylist '" + name + "' created successfully!");
 
-            // Check if user wants to add songs to the playlist
+            // Kullanıcıya şarkı eklemek isteyip istemediğini soralım
             out.println("\nDo you want to add songs to this playlist now?");
             out.println("1. Yes");
             out.println("2. No");
@@ -52,10 +55,9 @@ public class PlaylistUI {
 
             String choice = scanner.nextLine().trim();
             if (choice.equals("1")) {
-                List<Playlist> playlists = service.searchPlaylistsByName(name);
-                if (!playlists.isEmpty()) {
-                    addSongsToPlaylist(playlists.get(0).getId());
-                }
+                // Doğrudan oluşturduğumuz playlist ID'sini kullanalım
+                out.println("Adding songs to playlist: " + name + " (ID: " + playlistId + ")");
+                addSongsToPlaylist(playlistId);
             }
         } else {
             out.println("\nFailed to create playlist. Please try again.");
@@ -99,11 +101,10 @@ public class PlaylistUI {
         }
     }
 
-    /**
-     * View detailed information about a specific playlist
-     */
-    private void viewPlaylistDetails() {
-        List<Playlist> playlists = service.getAllPlaylists();
+    public void viewPlaylistDetails() {
+        // En güncel playlist listesini alalım
+        PlaylistDAO playlistDAO = new PlaylistDAO();
+        List<Playlist> playlists = playlistDAO.getAll();
 
         if (playlists.isEmpty()) {
             out.println("No playlists available.");
@@ -112,15 +113,15 @@ public class PlaylistUI {
 
         out.println("\nSelect a playlist to view:");
         for (int i = 0; i < playlists.size(); i++) {
-            out.println((i + 1) + ". " + playlists.get(i).getName() +
-                    " (" + playlists.get(i).getSongCount() + " songs)");
+            Playlist playlist = playlists.get(i);
+            out.println((i + 1) + ". " + playlist.getName() + " (" + playlist.getSongCount() + " songs) - ID: " + playlist.getId());
         }
 
         out.print("\nEnter playlist number: ");
         int playlistIndex;
         try {
-            playlistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (playlistIndex < 0 || playlistIndex >= playlists.size()) {
+            playlistIndex = Integer.parseInt(scanner.nextLine().trim());
+            if (playlistIndex < 1 || playlistIndex > playlists.size()) {
                 out.println("Invalid selection. Operation cancelled.");
                 return;
             }
@@ -129,13 +130,19 @@ public class PlaylistUI {
             return;
         }
 
-        Playlist selectedPlaylist = playlists.get(playlistIndex);
-        List<Song> songs = service.getSongsInPlaylist(selectedPlaylist.getId());
+        Playlist selectedPlaylist = playlists.get(playlistIndex - 1);
 
+        // Seçilen playlist'in ID'sini gösterelim
+        String playlistId = selectedPlaylist.getId();
+        System.out.println("Using playlist with ID: " + playlistId);
+
+        // Playlist'in detaylarını gösterelim
         out.println("\n========== PLAYLIST: " + selectedPlaylist.getName() + " ==========");
         out.println("Description: " + (selectedPlaylist.getDescription().isEmpty() ? "N/A" : selectedPlaylist.getDescription()));
-        out.println("Total songs: " + songs.size());
+        out.println("Total songs: " + selectedPlaylist.getSongCount());
         out.println("Total duration: " + selectedPlaylist.getFormattedTotalDuration());
+
+        List<Song> songs = selectedPlaylist.getSongs();
 
         if (songs.isEmpty()) {
             out.println("\nThis playlist is empty.");
@@ -158,11 +165,10 @@ public class PlaylistUI {
         }
     }
 
-    /**
-     * Handles editing an existing playlist
-     */
     public void editPlaylist() {
-        List<Playlist> playlists = service.getAllPlaylists();
+        // En güncel playlist listesini doğrudan DAO'dan alalım
+        PlaylistDAO playlistDAO = new PlaylistDAO();
+        List<Playlist> playlists = playlistDAO.getAll();
 
         if (playlists.isEmpty()) {
             out.println("No playlists available to edit.");
@@ -173,7 +179,8 @@ public class PlaylistUI {
         out.println("Select a playlist to edit:");
 
         for (int i = 0; i < playlists.size(); i++) {
-            out.println((i + 1) + ". " + playlists.get(i).getName());
+            Playlist playlist = playlists.get(i);
+            out.println((i + 1) + ". " + playlist.getName() + " - ID: " + playlist.getId());
         }
 
         out.print("\nEnter playlist number: ");
@@ -190,6 +197,9 @@ public class PlaylistUI {
         }
 
         Playlist selectedPlaylist = playlists.get(playlistIndex);
+        String playlistId = selectedPlaylist.getId();
+
+        System.out.println("Using playlist with ID: " + playlistId);
 
         out.println("\nEditing playlist: " + selectedPlaylist.getName());
         out.println("1. Rename playlist");
@@ -218,7 +228,7 @@ public class PlaylistUI {
                 editPlaylistDescription(selectedPlaylist);
                 break;
             case 3:
-                addSongsToPlaylist(selectedPlaylist.getId());
+                addSongsToPlaylist(playlistId);
                 break;
             case 4:
                 removeSongsFromPlaylist(selectedPlaylist);
@@ -231,7 +241,6 @@ public class PlaylistUI {
                 break;
         }
     }
-
     /**
      * Handles renaming a playlist
      */
@@ -263,8 +272,18 @@ public class PlaylistUI {
      * Handles adding songs to a playlist
      */
     public void addSongsToPlaylist(String playlistId) {
-        Playlist playlist = service.getPlaylistById(playlistId);
+        if (playlistId == null || playlistId.isEmpty()) {
+            out.println("Invalid playlist ID.");
+            return;
+        }
+
+        // PlaylistDAO'yu doğrudan kullanalım
+        PlaylistDAO playlistDAO = new PlaylistDAO();
+        Playlist playlist = playlistDAO.getById(playlistId);
+
         if (playlist == null) {
+            out.println("Looking for playlist with ID: " + playlistId);
+            out.println("No playlist found with ID: " + playlistId);
             out.println("Playlist not found.");
             return;
         }
@@ -307,7 +326,7 @@ public class PlaylistUI {
         if (input.equalsIgnoreCase("all")) {
             // Add all available songs
             for (Song song : availableSongs) {
-                service.addSongToPlaylist(song.getId(), playlistId);
+                playlistDAO.addSongToPlaylist(playlistId, song.getId());
             }
             out.println("Added " + availableSongs.size() + " songs to the playlist.");
             return;
@@ -322,9 +341,8 @@ public class PlaylistUI {
                 int index = Integer.parseInt(selection.trim()) - 1;
                 if (index >= 0 && index < availableSongs.size()) {
                     Song selectedSong = availableSongs.get(index);
-                    if (service.addSongToPlaylist(selectedSong.getId(), playlistId)) {
-                        addedCount++;
-                    }
+                    playlistDAO.addSongToPlaylist(playlistId, selectedSong.getId());
+                    addedCount++;
                 }
             } catch (NumberFormatException e) {
                 // Ignore invalid input
@@ -333,6 +351,7 @@ public class PlaylistUI {
 
         out.println("Added " + addedCount + " songs to the playlist.");
     }
+
 
     /**
      * Handles removing songs from a playlist
@@ -415,4 +434,6 @@ public class PlaylistUI {
             out.println("Operation cancelled.");
         }
     }
+
+
 }
