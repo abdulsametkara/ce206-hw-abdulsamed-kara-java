@@ -185,28 +185,22 @@ public class PlaylistDAO {
         }
     }
 
-    // PlaylistDAO sınıfında
     public void update(Playlist playlist) {
         synchronized (LOCK) {
             try {
-                // Playlist kontrolü
-                if (playlist == null || playlist.getId() == null) {
-                    System.err.println("Invalid playlist or playlist ID");
+                if (playlist == null) {
+                    System.err.println("Cannot update null playlist");
                     return;
                 }
 
-                // Playlist'in var olup olmadığını kontrol edelim
-                String checkSql = "SELECT COUNT(*) FROM playlists WHERE id = ?";
-                try (Connection conn = DatabaseUtil.getConnection();
-                     PreparedStatement pstmt = conn.prepareStatement(checkSql)) {
-                    pstmt.setString(1, playlist.getId());
-                    try (ResultSet rs = pstmt.executeQuery()) {
-                        if (rs.next() && rs.getInt(1) == 0) {
-                            System.err.println("Playlist with ID " + playlist.getId() + " not found for update");
-                            return;
-                        }
-                    }
+                String playlistId = playlist.getId();
+                if (playlistId == null || playlistId.trim().isEmpty()) {
+                    System.err.println("Cannot update playlist with null or empty ID");
+                    return;
                 }
+
+                System.out.println("Updating playlist with ID: " + playlistId + ", new name: " + playlist.getName() +
+                        ", new description: " + playlist.getDescription());
 
                 // Playlist bilgilerini güncelle
                 String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
@@ -214,9 +208,14 @@ public class PlaylistDAO {
                      PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setString(1, playlist.getName());
                     pstmt.setString(2, playlist.getDescription());
-                    pstmt.setString(3, playlist.getId());
+                    pstmt.setString(3, playlistId);
                     int affectedRows = pstmt.executeUpdate();
-                    System.out.println("Updated playlist " + playlist.getId() + ", affected rows: " + affectedRows);
+                    System.out.println("Updated playlist in database. Affected rows: " + affectedRows);
+
+                    if (affectedRows == 0) {
+                        System.err.println("Update failed. No rows affected. Playlist with ID " +
+                                playlistId + " might not exist in database.");
+                    }
                 }
             } catch (SQLException e) {
                 System.err.println("Error updating playlist: " + e.getMessage());

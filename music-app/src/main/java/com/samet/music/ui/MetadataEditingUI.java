@@ -1,5 +1,6 @@
 package com.samet.music.ui;
 
+import com.samet.music.dao.ArtistDAO;
 import com.samet.music.model.Album;
 import com.samet.music.model.Artist;
 import com.samet.music.model.Song;
@@ -92,9 +93,6 @@ public class MetadataEditingUI {
         }
     }
 
-    /**
-     * Edit artist name
-     */
     private void editArtistName(Artist artist) {
         out.println("\nCurrent name: " + artist.getName());
         out.print("Enter new name: ");
@@ -105,15 +103,24 @@ public class MetadataEditingUI {
             return;
         }
 
-        // Check if name is unique
-        List<Artist> existingArtists = service.searchArtistsByName(newName);
-        if (!existingArtists.isEmpty() && !existingArtists.get(0).getId().equals(artist.getId())) {
-            out.println("An artist with this name already exists. Please choose a different name.");
-            return;
-        }
+        // Güncelleme öncesi artist ID'sini kaydet
+        String artistId = artist.getId();
+        System.out.println("Updating artist with ID: " + artistId);
 
+        // Sanatçı adını değiştir
         artist.setName(newName);
+
+        // ArtistDAO'yu kullanarak veritabanını güncelle
+        ArtistDAO artistDAO = new ArtistDAO();
+        artistDAO.update(artist);
+
         out.println("Artist name updated successfully to '" + newName + "'.");
+
+        // Değişikliğin etkili olup olmadığını kontrol et
+        Artist updatedArtist = artistDAO.getById(artistId);
+        if (updatedArtist != null) {
+            out.println("Verified: Artist with ID " + artistId + " now has name: " + updatedArtist.getName());
+        }
     }
 
     /**

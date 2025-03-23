@@ -138,6 +138,8 @@ public class PlaylistsViewController {
         Playlist selectedPlaylist = playlistsTable.getSelectionModel().getSelectedItem();
         if (selectedPlaylist != null) {
             try {
+                System.out.println("Editing playlist: " + selectedPlaylist.getId() + " - " + selectedPlaylist.getName());
+
                 // Edit dialog aç
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EditPlaylistDialog.fxml"));
                 Parent root = loader.load();
@@ -154,11 +156,23 @@ public class PlaylistsViewController {
                 dialogStage.showAndWait();
 
                 if (controller.isSaved()) {
+                    // Görünümü yenile
                     refreshData();
+
+                    // Kullanıcıya bilgi ver
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Success");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Playlist updated successfully.");
+                    alert.showAndWait();
                 }
             } catch (Exception e) {
-                showErrorAlert("Error", "Could not open edit playlist dialog: " + e.getMessage());
+                System.err.println("Error editing playlist: " + e.getMessage());
+                e.printStackTrace();
+                showErrorAlert("Error", "Could not edit playlist: " + e.getMessage());
             }
+        } else {
+            showErrorAlert("No Selection", "Please select a playlist to edit");
         }
     }
 
@@ -244,9 +258,24 @@ public class PlaylistsViewController {
     }
 
     private void refreshData() {
-        playlistsList.clear();
-        playlistsList.addAll(service.getAllPlaylists());
-        updateSongList();
+        try {
+            playlistsList.clear();
+
+            // Veritabanından en güncel playlist listesini alalım
+            PlaylistDAO playlistDAO = new PlaylistDAO();
+            List<Playlist> playlists = playlistDAO.getAll();
+
+            // UI'ı güncelleyelim
+            playlistsList.addAll(playlists);
+
+            // Playlist seçiliyse, şarkı listesini de güncelleyelim
+            updateSongList();
+
+            System.out.println("Refreshed playlist data: " + playlists.size() + " playlists loaded");
+        } catch (Exception e) {
+            System.err.println("Error refreshing data: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private boolean confirmDelete(String title, String message) {
