@@ -78,4 +78,17 @@ public class Artist extends BaseEntity {
     public String toString() {
         return getName() + " (" + albums.size() + " albums)";
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Artist that = (Artist) obj;
+        return getId().equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
+    }
 }

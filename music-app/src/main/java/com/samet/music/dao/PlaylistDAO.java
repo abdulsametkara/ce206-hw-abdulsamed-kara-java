@@ -1,8 +1,10 @@
 package com.samet.music.dao;
 
-import com.samet.music.util.DatabaseUtil;
 import com.samet.music.model.Playlist;
 import com.samet.music.model.Song;
+import com.samet.music.util.DatabaseUtil;
+
+
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -144,28 +146,21 @@ public class PlaylistDAO {
         }
     }
 
+    // PlaylistDAO sınıfında
     public void update(Playlist playlist) {
         synchronized (LOCK) {
-
-            String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
-
-            try (Connection conn = DatabaseUtil.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-                pstmt.setString(1, playlist.getName());
-                pstmt.setString(2, playlist.getDescription());
-                pstmt.setString(3, playlist.getId());
-
-                pstmt.executeUpdate();
-
-                // Önce mevcut şarkıları sil
-                deletePlaylistSongs(playlist.getId());
-
-                // Yeni şarkıları ekle
-                for (Song song : playlist.getSongs()) {
-                    insertPlaylistSong(playlist.getId(), song.getId());
+            try {
+                // Önce playlist bilgilerini güncelle
+                String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
+                try (Connection conn = DatabaseUtil.getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, playlist.getName());
+                    pstmt.setString(2, playlist.getDescription());
+                    pstmt.setString(3, playlist.getId());
+                    pstmt.executeUpdate();
                 }
             } catch (SQLException e) {
+                System.err.println("Error updating playlist: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -189,19 +184,24 @@ public class PlaylistDAO {
 
     public void delete(String id) {
         synchronized (LOCK) {
+            try {
+                // Önce playlist_songs tablosundan şarkıları sil
+                String deleteSongsSQL = "DELETE FROM playlist_songs WHERE playlist_id = ?";
+                try (Connection conn = DatabaseUtil.getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(deleteSongsSQL)) {
+                    pstmt.setString(1, id);
+                    pstmt.executeUpdate();
+                }
 
-            // Önce playlist_songs tablosundan şarkıları sil
-            deletePlaylistSongs(id);
-
-            // Sonra playlist'i sil
-            String sql = "DELETE FROM playlists WHERE id = ?";
-
-            try (Connection conn = DatabaseUtil.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-                pstmt.setString(1, id);
-                pstmt.executeUpdate();
+                // Sonra playlist'i sil
+                String deletePlaylistSQL = "DELETE FROM playlists WHERE id = ?";
+                try (Connection conn = DatabaseUtil.getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(deletePlaylistSQL)) {
+                    pstmt.setString(1, id);
+                    pstmt.executeUpdate();
+                }
             } catch (SQLException e) {
+                System.err.println("Error deleting playlist: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -209,17 +209,31 @@ public class PlaylistDAO {
 
     public void addSongToPlaylist(String playlistId, String songId) {
         synchronized (LOCK) {
+            try {
+                // Önce ilişkinin olup olmadığını kontrol et
+                String checkSQL = "SELECT COUNT(*) FROM playlist_songs WHERE playlist_id = ? AND song_id = ?";
+                try (Connection conn = DatabaseUtil.getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(checkSQL)) {
+                    pstmt.setString(1, playlistId);
+                    pstmt.setString(2, songId);
+                    try (ResultSet rs = pstmt.executeQuery()) {
+                        if (rs.next() && rs.getInt(1) > 0) {
+                            // İlişki zaten var, ekleme yapmaya gerek yok
+                            return;
+                        }
+                    }
+                }
 
-            String sql = "INSERT OR IGNORE INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
-
-            try (Connection conn = DatabaseUtil.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-                pstmt.setString(1, playlistId);
-                pstmt.setString(2, songId);
-
-                pstmt.executeUpdate();
+                // İlişki yoksa ekle
+                String sql = "INSERT INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
+                try (Connection conn = DatabaseUtil.getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setString(1, playlistId);
+                    pstmt.setString(2, songId);
+                    pstmt.executeUpdate();
+                }
             } catch (SQLException e) {
+                System.err.println("Error adding song to playlist: " + e.getMessage());
                 e.printStackTrace();
             }
         }

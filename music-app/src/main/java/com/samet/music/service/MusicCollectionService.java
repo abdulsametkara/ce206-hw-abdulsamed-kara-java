@@ -14,8 +14,7 @@ import com.samet.music.repository.SongCollection;
 import com.samet.music.util.DatabaseUtil;
 
 import java.sql.*;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Service class for music collection operations
@@ -65,10 +64,6 @@ public class MusicCollectionService {
         Artist artist = musicFactory.createArtist(name, biography);
         artistCollection.add(artist);
         return true;
-    }
-
-    public List<Artist> getAllArtists() {
-        return artistCollection.getAll();
     }
 
     public Artist getArtistById(String id) {
@@ -284,7 +279,26 @@ public class MusicCollectionService {
     }
 
     public boolean removePlaylist(String id) {
-        return playlistCollection.remove(id);
+        if (id == null || id.trim().isEmpty()) {
+            return false;
+        }
+
+        try {
+            // Get playlist for validation
+            Playlist playlist = playlistCollection.getById(id);
+            if (playlist == null) {
+                System.err.println("Playlist with ID " + id + " not found");
+                return false;
+            }
+
+            // Delete playlist
+            playlistCollection.remove(id);
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error removing playlist: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public List<Playlist> searchPlaylistsByName(String name) {
@@ -542,5 +556,33 @@ public class MusicCollectionService {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Sanatçı listesinden duplikasyonları temizler
+     *
+     * @param artists Duplikasyonları temizlenecek sanatçı listesi
+     * @return Duplikasyonları temizlenmiş yeni liste
+     */
+    private List<Artist> removeDuplicateArtists(List<Artist> artists) {
+        Map<String, Artist> uniqueArtists = new HashMap<>();
+
+        for (Artist artist : artists) {
+            uniqueArtists.put(artist.getId(), artist);
+        }
+
+        return new ArrayList<>(uniqueArtists.values());
+    }
+
+    public List<Artist> getAllArtists() {
+        List<Artist> allArtists = artistCollection.getAll();
+
+        // Benzersiz artist listesi oluştur (ID'ye göre)
+        Map<String, Artist> uniqueArtistsMap = new HashMap<>();
+        for (Artist artist : allArtists) {
+            uniqueArtistsMap.put(artist.getId(), artist);
+        }
+
+        return new ArrayList<>(uniqueArtistsMap.values());
     }
 }
