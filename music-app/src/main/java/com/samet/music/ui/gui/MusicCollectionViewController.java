@@ -237,30 +237,56 @@ public class MusicCollectionViewController {
     }
 
     private void refreshData() {
-        songsList.clear();
-        albumsList.clear();
-        artistsList.clear();
+        try {
+            songsList.clear();
+            albumsList.clear();
+            artistsList.clear();
 
-        // Her zaman veritabanından yeni verileri çek
-        List<Song> songs = service.getAllSongs();
-        List<Album> albums = service.getAllAlbums();
-        List<Artist> artists = service.getAllArtists();
+            // Her zaman veritabanından yeni verileri çek
+            List<Song> songs = service.getAllSongs();
+            List<Album> albums = service.getAllAlbums();
+            List<Artist> artists = service.getAllArtists();
 
-        // Duplikasyonları önlemek için ID bazlı kontrol
-        Map<String, Artist> uniqueArtistsMap = new HashMap<>();
+            // Benzersiz sanatçı listesi oluştur
+            Map<String, Artist> uniqueArtists = new HashMap<>();
+            for (Artist artist : artists) {
+                uniqueArtists.put(artist.getId(), artist);
+            }
 
-        // Artist'leri ID'lerine göre birleştir ve en güncel bilgileri tut
-        for (Artist artist : artists) {
-            uniqueArtistsMap.put(artist.getId(), artist);
+            // Aynı isimli sanatçıları tespit et ve birleştir
+            Map<String, List<Artist>> artistsByName = new HashMap<>();
+            for (Artist artist : uniqueArtists.values()) {
+                String name = artist.getName().toLowerCase();
+                artistsByName.computeIfAbsent(name, k -> new ArrayList<>()).add(artist);
+            }
+
+            // Her isim için tek bir sanatçı seç
+            Map<String, Artist> finalArtists = new HashMap<>();
+            for (Map.Entry<String, List<Artist>> entry : artistsByName.entrySet()) {
+                List<Artist> sameNameArtists = entry.getValue();
+
+                // Şarkı sayısı en fazla olanı seç
+                sameNameArtists.sort((a1, a2) -> {
+                    int songs1 = service.getSongsByArtist(a1.getId()).size();
+                    int songs2 = service.getSongsByArtist(a2.getId()).size();
+                    return Integer.compare(songs2, songs1); // Büyükten küçüğe sırala
+                });
+
+                finalArtists.put(entry.getKey(), sameNameArtists.get(0));
+            }
+
+            // Listeleri doldur
+            songsList.addAll(songs);
+            albumsList.addAll(albums);
+            artistsList.addAll(finalArtists.values());
+
+            System.out.println("Refreshed data: " + songs.size() + " songs, " +
+                    albums.size() + " albums, " +
+                    finalArtists.size() + " unique artists");
+        } catch (Exception e) {
+            System.err.println("Error refreshing data: " + e.getMessage());
+            e.printStackTrace();
         }
-
-        songsList.addAll(songs);
-        albumsList.addAll(albums);
-        artistsList.addAll(uniqueArtistsMap.values());
-
-        System.out.println("Refreshed data: " + songs.size() + " songs, " +
-                albums.size() + " albums, " +
-                uniqueArtistsMap.size() + " unique artists");
     }
 
     private boolean confirmDelete(String title, String message) {

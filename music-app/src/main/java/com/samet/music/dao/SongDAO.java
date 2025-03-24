@@ -155,15 +155,16 @@ public class SongDAO {
         }
     }
 
+    // SongDAO sınıfındaki update metodunu güçlendirelim
     public void update(Song song) {
         synchronized (LOCK) {
-
             String sql = "UPDATE songs SET name = ?, artist_id = ?, album_id = ?, duration = ?, genre = ? WHERE id = ?";
 
             try (Connection conn = DatabaseUtil.getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
                 System.out.println("Updating song: " + song.getName() + ", ID: " + song.getId());
+                System.out.println("Album ID: " + (song.getAlbum() != null ? song.getAlbum().getId() : "null"));
 
                 pstmt.setString(1, song.getName());
                 pstmt.setString(2, song.getArtist() != null ? song.getArtist().getId() : null);

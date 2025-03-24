@@ -36,5 +36,5 @@
         </columns>
     </TableView>
     
-    <Button text="Close" onAction="#handleClose" alignment="CENTER_RIGHT"/>
+<Button text="Close" onAction="#handleClose" alignment="CENTER_RIGHT"/>
 </VBox>
