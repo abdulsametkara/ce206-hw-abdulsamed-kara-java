@@ -177,6 +177,7 @@ public class MusicCollectionService {
         }
     }
 
+    // MusicCollectionService sınıfındaki addSongToAlbum metodunu güncelleyelim
     public boolean addSongToAlbum(String songId, String albumId) {
         Song song = songCollection.getById(songId);
         Album album = albumCollection.getById(albumId);
@@ -185,7 +186,15 @@ public class MusicCollectionService {
             return false;
         }
 
+        // Şarkıyı albüme bağla
         song.setAlbum(album);
+
+        // Veritabanını güncelle
+        SongDAO songDAO = new SongDAO();
+        songDAO.update(song);
+
+        System.out.println("Added song " + song.getName() + " to album " + album.getName());
+
         return true;
     }
 

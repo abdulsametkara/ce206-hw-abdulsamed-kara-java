@@ -252,4 +252,55 @@ public class ArtistDAO {
         }
     }
 
+    public void mergeArtists(String primaryArtistId, String duplicateArtistId) {
+        synchronized (LOCK) {
+            try (Connection conn = DatabaseUtil.getConnection()) {
+                // Transaction başlat
+                conn.setAutoCommit(false);
+
+                try {
+                    // Albümleri güncelle
+                    PreparedStatement updateAlbums = conn.prepareStatement(
+                            "UPDATE albums SET artist_id = ? WHERE artist_id = ?");
+                    updateAlbums.setString(1, primaryArtistId);
+                    updateAlbums.setString(2, duplicateArtistId);
+                    int albumsUpdated = updateAlbums.executeUpdate();
+
+                    // Şarkıları güncelle
+                    PreparedStatement updateSongs = conn.prepareStatement(
+                            "UPDATE songs SET artist_id = ? WHERE artist_id = ?");
+                    updateSongs.setString(1, primaryArtistId);
+                    updateSongs.setString(2, duplicateArtistId);
+                    int songsUpdated = updateSongs.executeUpdate();
+
+                    // Duplike sanatçıyı sil
+                    PreparedStatement deleteArtist = conn.prepareStatement(
+                            "DELETE FROM artists WHERE id = ?");
+                    deleteArtist.setString(1, duplicateArtistId);
+                    int artistDeleted = deleteArtist.executeUpdate();
+
+                    // Önbellekten kaldır
+                    artistCache.remove(duplicateArtistId);
+
+                    // Transaction'ı tamamla
+                    conn.commit();
+
+                    System.out.println("Merged artist " + duplicateArtistId + " into " + primaryArtistId +
+                            ": Updated " + albumsUpdated + " albums, " +
+                            songsUpdated + " songs, deleted " + artistDeleted + " artist record");
+                } catch (SQLException e) {
+                    // Hata durumunda geri al
+                    conn.rollback();
+                    throw e;
+                } finally {
+                    // Otomatik commit'i geri yükle
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                System.err.println("Error merging artists: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
 }

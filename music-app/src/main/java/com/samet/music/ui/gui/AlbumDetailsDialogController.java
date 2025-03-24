@@ -44,6 +44,11 @@ public class AlbumDetailsDialogController {
         });
     }
 
+    @FXML
+    private void handleClose() {
+        ((Stage) albumNameLabel.getScene().getWindow()).close();
+    }
+
     public void setAlbum(Album album) {
         this.album = album;
 
