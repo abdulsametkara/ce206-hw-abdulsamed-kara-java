@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  music-app:
+    build: .
+    container_name: music-app
+    volumes:
+      - sqlite-data:/app/data
+    ports:
+      - "5901:5901"  # VNC Portu
+      - "6080:6080"  # noVNC Web UI Portu
+    environment:
+      - DB_TYPE=sqlite
+      - DB_PATH=/app/data/music_library.db
+    restart: unless-stopped
+
+volumes:
+  sqlite-data:
