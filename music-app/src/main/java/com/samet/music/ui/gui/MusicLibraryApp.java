@@ -11,15 +11,19 @@ import javafx.stage.Stage;
 
 public class MusicLibraryApp extends Application {
 
+
+
     @Override
     public void start(Stage primaryStage) throws Exception {
+
+
         try {
             // Veritabanını başlat
             DatabaseUtil.initializeDatabase();
 
-            Parent root = FXMLLoader.load(getClass().getResource("/fxml/MainView.fxml"));
-            primaryStage.setTitle("Music Library");
-            primaryStage.setScene(new Scene(root, 800, 600));
+            Parent root = FXMLLoader.load(getClass().getResource("/fxml/Login.fxml"));
+            primaryStage.setTitle("Music Library - Login");
+            primaryStage.setScene(new Scene(root, 400, 300));
             primaryStage.show();
         } catch (Exception e) {
             // Hata mesajını göster
@@ -48,6 +52,7 @@ public class MusicLibraryApp extends Application {
                 fatalAlert.showAndWait();
                 Platform.exit();
             }
+
         }
     }
 
