@@ -10,9 +10,55 @@ services:
       - "5901:5901"  # VNC Portu
       - "6080:6080"  # noVNC Web UI Portu
     environment:
-      - DB_TYPE=sqlite
-      - DB_PATH=/app/data/music_library.db
+     - DB_TYPE=sqlite
+     - DB_PATH=/app/data/music_library.db
+     - KEYCLOAK_URL=http://keycloak:8080
+     - KEYCLOAK_REALM=music-realm
+     - KEYCLOAK_CLIENT_ID=music-app
+     - KEYCLOAK_CLIENT_SECRET=Nm28uVwsy4Kc4hY3v87RN9yW6ifkU4BU
+  
+    depends_on:
+      - keycloak
     restart: unless-stopped
+    networks:
+      - music-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    container_name: keycloak
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=keycloak
+    ports:
+      - "8080:8080"
+    depends_on:
+      - keycloak-db
+    command: start-dev
+    restart: unless-stopped
+    networks:
+      - music-network
+
+  keycloak-db:
+    image: postgres:13
+    container_name: keycloak-db
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=keycloak
+      - POSTGRES_PASSWORD=keycloak
+    volumes:
+      - keycloak-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - music-network
 
 volumes:
   sqlite-data:
+  keycloak-data:
+
+networks:
+  music-network:
+    driver: bridge
