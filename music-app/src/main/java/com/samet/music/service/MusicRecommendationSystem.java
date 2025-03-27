@@ -3,6 +3,13 @@ package com.samet.music.service;
 import com.samet.music.model.Album;
 import com.samet.music.model.Artist;
 import com.samet.music.model.Song;
+import com.samet.music.monitoring.MetricsCollector;
+
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -16,6 +23,8 @@ import java.util.stream.Collectors;
  * Implements the Strategy design pattern for different recommendation algorithms
  */
 public class MusicRecommendationSystem {
+    private static final Logger logger = LoggerFactory.getLogger(MusicRecommendationSystem.class);
+
     private final MusicCollectionService service;
 
     // Track user's listening history
@@ -27,6 +36,9 @@ public class MusicRecommendationSystem {
     // Track user's artist preferences
     private Map<String, Map<String, Integer>> userArtistPreferences; // userId -> (artistId -> score)
 
+    // Recommendation counter metriği
+    private final Counter recommendationCounter;
+
     // Singleton implementation
     private static MusicRecommendationSystem instance;
 
@@ -35,6 +47,15 @@ public class MusicRecommendationSystem {
         this.userListeningHistory = new HashMap<>();
         this.userGenrePreferences = new HashMap<>();
         this.userArtistPreferences = new HashMap<>();
+
+        // Recommendation counter oluştur
+        this.recommendationCounter = Counter.build()
+                .name("music_app_recommendations_total")
+                .help("Yapılan toplam öneri sayısı")
+                .labelNames("type")
+                .register();
+
+        logger.info("MusicRecommendationSystem initialized");
     }
 
     public static synchronized MusicRecommendationSystem getInstance() {
@@ -50,22 +71,48 @@ public class MusicRecommendationSystem {
      * @param songId ID of the song
      */
     public void recordSongPlay(String userId, String songId) {
-        // Initialize user's history if not exists
-        userListeningHistory.putIfAbsent(userId, new HashMap<>());
-
-        // Update play count for this song
-        Map<String, Integer> userHistory = userListeningHistory.get(userId);
-        userHistory.put(songId, userHistory.getOrDefault(songId, 0) + 1);
-
-        // Update genre preference
-        Song song = service.getSongById(songId);
-        if (song != null) {
-            updateGenrePreference(userId, song.getGenre(), 1);
-
-            // Update artist preference
-            if (song.getArtist() != null) {
-                updateArtistPreference(userId, song.getArtist().getId(), 1);
+        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("record_song_play");
+        try {
+            if (userId == null || songId == null) {
+                logger.warn("Cannot record song play with null userId or songId");
+                return;
             }
+
+            logger.info("Recording song play for user: {}, song: {}", userId, songId);
+
+            // Initialize user's history if not exists
+            userListeningHistory.putIfAbsent(userId, new HashMap<>());
+
+            // Update play count for this song
+            Map<String, Integer> userHistory = userListeningHistory.get(userId);
+            int newCount = userHistory.getOrDefault(songId, 0) + 1;
+            userHistory.put(songId, newCount);
+            logger.debug("Updated play count for song {} to {}", songId, newCount);
+
+            // Update genre preference
+            Song song = service.getSongById(songId);
+            if (song != null) {
+                updateGenrePreference(userId, song.getGenre(), 1);
+
+                // Şarkı oynatıldı metriği
+                if (song.getArtist() != null) {
+                    MetricsCollector.getInstance().incrementSongPlay(
+                            song.getArtist().getName(),
+                            song.getGenre()
+                    );
+                }
+
+                // Update artist preference
+                if (song.getArtist() != null) {
+                    updateArtistPreference(userId, song.getArtist().getId(), 1);
+                }
+            } else {
+                logger.warn("Could not find song with ID {} for recording play", songId);
+            }
+        } catch (Exception e) {
+            logger.error("Error recording song play: {}", e.getMessage(), e);
+        } finally {
+            timer.observeDuration();
         }
     }
 
@@ -77,15 +124,20 @@ public class MusicRecommendationSystem {
      */
     public void updateGenrePreference(String userId, String genre, int score) {
         if (genre == null || genre.isEmpty()) {
+            logger.debug("Skipping genre preference update due to null/empty genre");
             return;
         }
+
+        logger.debug("Updating genre preference for user {}, genre {}, score {}", userId, genre, score);
 
         // Initialize user's genre preferences if not exists
         userGenrePreferences.putIfAbsent(userId, new HashMap<>());
 
         // Update genre preference score
         Map<String, Integer> genrePrefs = userGenrePreferences.get(userId);
-        genrePrefs.put(genre, genrePrefs.getOrDefault(genre, 0) + score);
+        int newScore = genrePrefs.getOrDefault(genre, 0) + score;
+        genrePrefs.put(genre, newScore);
+        logger.debug("Updated genre preference for {} to {}", genre, newScore);
     }
 
     /**
@@ -96,15 +148,20 @@ public class MusicRecommendationSystem {
      */
     public void updateArtistPreference(String userId, String artistId, int score) {
         if (artistId == null || artistId.isEmpty()) {
+            logger.debug("Skipping artist preference update due to null/empty artistId");
             return;
         }
+
+        logger.debug("Updating artist preference for user {}, artist {}, score {}", userId, artistId, score);
 
         // Initialize user's artist preferences if not exists
         userArtistPreferences.putIfAbsent(userId, new HashMap<>());
 
         // Update artist preference score
         Map<String, Integer> artistPrefs = userArtistPreferences.get(userId);
-        artistPrefs.put(artistId, artistPrefs.getOrDefault(artistId, 0) + score);
+        int newScore = artistPrefs.getOrDefault(artistId, 0) + score;
+        artistPrefs.put(artistId, newScore);
+        logger.debug("Updated artist preference for {} to {}", artistId, newScore);
     }
 
     /**
@@ -113,19 +170,30 @@ public class MusicRecommendationSystem {
      * @return Map of genre -> score, sorted by score in descending order
      */
     public Map<String, Integer> getUserTopGenres(String userId) {
-        if (!userGenrePreferences.containsKey(userId)) {
+        try {
+            logger.debug("Getting top genres for user: {}", userId);
+
+            if (!userGenrePreferences.containsKey(userId)) {
+                logger.debug("No genre preferences found for user {}", userId);
+                return Collections.emptyMap();
+            }
+
+            // Sort genres by preference score
+            Map<String, Integer> sortedGenres = userGenrePreferences.get(userId).entrySet().stream()
+                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            Map.Entry::getValue,
+                            (e1, e2) -> e1,
+                            LinkedHashMap::new
+                    ));
+
+            logger.debug("Found {} genre preferences for user {}", sortedGenres.size(), userId);
+            return sortedGenres;
+        } catch (Exception e) {
+            logger.error("Error getting user top genres: {}", e.getMessage(), e);
             return Collections.emptyMap();
         }
-
-        // Sort genres by preference score
-        return userGenrePreferences.get(userId).entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (e1, e2) -> e1,
-                        LinkedHashMap::new
-                ));
     }
 
     /**
@@ -134,19 +202,30 @@ public class MusicRecommendationSystem {
      * @return Map of artistId -> score, sorted by score in descending order
      */
     public Map<String, Integer> getUserTopArtists(String userId) {
-        if (!userArtistPreferences.containsKey(userId)) {
+        try {
+            logger.debug("Getting top artists for user: {}", userId);
+
+            if (!userArtistPreferences.containsKey(userId)) {
+                logger.debug("No artist preferences found for user {}", userId);
+                return Collections.emptyMap();
+            }
+
+            // Sort artists by preference score
+            Map<String, Integer> sortedArtists = userArtistPreferences.get(userId).entrySet().stream()
+                    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            Map.Entry::getValue,
+                            (e1, e2) -> e1,
+                            LinkedHashMap::new
+                    ));
+
+            logger.debug("Found {} artist preferences for user {}", sortedArtists.size(), userId);
+            return sortedArtists;
+        } catch (Exception e) {
+            logger.error("Error getting user top artists: {}", e.getMessage(), e);
             return Collections.emptyMap();
         }
-
-        // Sort artists by preference score
-        return userArtistPreferences.get(userId).entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (e1, e2) -> e1,
-                        LinkedHashMap::new
-                ));
     }
 
     /**
@@ -156,40 +235,59 @@ public class MusicRecommendationSystem {
      * @return List of recommended songs
      */
     public List<Song> recommendSongsByGenre(String userId, int limit) {
-        Map<String, Integer> topGenres = getUserTopGenres(userId);
-        if (topGenres.isEmpty()) {
+        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("recommend_songs");
+        try {
+            logger.info("Generating song recommendations for user: {}, limit: {}", userId, limit);
+
+            Map<String, Integer> topGenres = getUserTopGenres(userId);
+            if (topGenres.isEmpty()) {
+                logger.info("No genre preferences found for user: {}", userId);
+                return Collections.emptyList();
+            }
+
+            // Get songs the user has already listened to
+            Set<String> listenedSongIds = userListeningHistory.getOrDefault(userId, Collections.emptyMap()).keySet();
+
+            // Get all songs
+            List<Song> allSongs = service.getAllSongs();
+            logger.debug("Found {} total songs for recommendation", allSongs.size());
+
+            // Score songs based on genre match with user preferences
+            List<ScoredSong> scoredSongs = new ArrayList<>();
+            for (Song song : allSongs) {
+                // Skip songs the user has already listened to
+                if (listenedSongIds.contains(song.getId())) {
+                    continue;
+                }
+
+                // Calculate score based on genre match
+                String genre = song.getGenre();
+                int score = topGenres.getOrDefault(genre, 0);
+
+                if (score > 0) {
+                    scoredSongs.add(new ScoredSong(song, score));
+                }
+            }
+
+            // Sort by score (descending) and return the top N songs
+            List<Song> recommendations = scoredSongs.stream()
+                    .sorted(Comparator.comparingInt(ScoredSong::getScore).reversed())
+                    .limit(limit)
+                    .map(ScoredSong::getSong)
+                    .collect(Collectors.toList());
+
+            logger.info("Generated {} song recommendations for user: {}", recommendations.size(), userId);
+
+            // Recommendation counter'ı artır
+            recommendationCounter.labels("song").inc();
+
+            return recommendations;
+        } catch (Exception e) {
+            logger.error("Error generating song recommendations: {}", e.getMessage(), e);
             return Collections.emptyList();
+        } finally {
+            timer.observeDuration();
         }
-
-        // Get songs the user has already listened to
-        Set<String> listenedSongIds = userListeningHistory.getOrDefault(userId, Collections.emptyMap()).keySet();
-
-        // Get all songs
-        List<Song> allSongs = service.getAllSongs();
-
-        // Score songs based on genre match with user preferences
-        List<ScoredSong> scoredSongs = new ArrayList<>();
-        for (Song song : allSongs) {
-            // Skip songs the user has already listened to
-            if (listenedSongIds.contains(song.getId())) {
-                continue;
-            }
-
-            // Calculate score based on genre match
-            String genre = song.getGenre();
-            int score = topGenres.getOrDefault(genre, 0);
-
-            if (score > 0) {
-                scoredSongs.add(new ScoredSong(song, score));
-            }
-        }
-
-        // Sort by score (descending) and return the top N songs
-        return scoredSongs.stream()
-                .sorted(Comparator.comparingInt(ScoredSong::getScore).reversed())
-                .limit(limit)
-                .map(ScoredSong::getSong)
-                .collect(Collectors.toList());
     }
 
     /**
@@ -199,41 +297,60 @@ public class MusicRecommendationSystem {
      * @return List of recommended songs
      */
     public List<Song> recommendSongsBySimilarArtist(String userId, int limit) {
-        Map<String, Integer> topArtists = getUserTopArtists(userId);
-        if (topArtists.isEmpty()) {
-            return Collections.emptyList();
-        }
+        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("recommend_songs_by_artist");
+        try {
+            logger.info("Generating similar artist song recommendations for user: {}, limit: {}", userId, limit);
 
-        // Get songs the user has already listened to
-        Set<String> listenedSongIds = userListeningHistory.getOrDefault(userId, Collections.emptyMap()).keySet();
-
-        // Get all songs
-        List<Song> allSongs = service.getAllSongs();
-
-        // Score songs based on artist match with user preferences
-        List<ScoredSong> scoredSongs = new ArrayList<>();
-        for (Song song : allSongs) {
-            // Skip songs the user has already listened to
-            if (listenedSongIds.contains(song.getId())) {
-                continue;
+            Map<String, Integer> topArtists = getUserTopArtists(userId);
+            if (topArtists.isEmpty()) {
+                logger.info("No artist preferences found for user: {}", userId);
+                return Collections.emptyList();
             }
 
-            // Calculate score based on artist match
-            if (song.getArtist() != null) {
-                int score = topArtists.getOrDefault(song.getArtist().getId(), 0);
+            // Get songs the user has already listened to
+            Set<String> listenedSongIds = userListeningHistory.getOrDefault(userId, Collections.emptyMap()).keySet();
 
-                if (score > 0) {
-                    scoredSongs.add(new ScoredSong(song, score));
+            // Get all songs
+            List<Song> allSongs = service.getAllSongs();
+            logger.debug("Found {} total songs for recommendation", allSongs.size());
+
+            // Score songs based on artist match with user preferences
+            List<ScoredSong> scoredSongs = new ArrayList<>();
+            for (Song song : allSongs) {
+                // Skip songs the user has already listened to
+                if (listenedSongIds.contains(song.getId())) {
+                    continue;
+                }
+
+                // Calculate score based on artist match
+                if (song.getArtist() != null) {
+                    int score = topArtists.getOrDefault(song.getArtist().getId(), 0);
+
+                    if (score > 0) {
+                        scoredSongs.add(new ScoredSong(song, score));
+                    }
                 }
             }
-        }
 
-        // Sort by score (descending) and return the top N songs
-        return scoredSongs.stream()
-                .sorted(Comparator.comparingInt(ScoredSong::getScore).reversed())
-                .limit(limit)
-                .map(ScoredSong::getSong)
-                .collect(Collectors.toList());
+            // Sort by score (descending) and return the top N songs
+            List<Song> recommendations = scoredSongs.stream()
+                    .sorted(Comparator.comparingInt(ScoredSong::getScore).reversed())
+                    .limit(limit)
+                    .map(ScoredSong::getSong)
+                    .collect(Collectors.toList());
+
+            logger.info("Generated {} similar artist song recommendations for user: {}", recommendations.size(), userId);
+
+            // Recommendation counter'ı artır
+            recommendationCounter.labels("similar_artist_song").inc();
+
+            return recommendations;
+        } catch (Exception e) {
+            logger.error("Error generating similar artist song recommendations: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        } finally {
+            timer.observeDuration();
+        }
     }
 
     /**
@@ -243,50 +360,71 @@ public class MusicRecommendationSystem {
      * @return List of recommended albums
      */
     public List<Album> recommendAlbumsByArtist(String userId, int limit) {
-        Map<String, Integer> topArtists = getUserTopArtists(userId);
-        if (topArtists.isEmpty()) {
-            return Collections.emptyList();
-        }
+        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("recommend_albums");
+        try {
+            logger.info("Generating album recommendations for user: {}, limit: {}", userId, limit);
 
-        // Get all songs the user has listened to
-        Map<String, Integer> userHistory = userListeningHistory.getOrDefault(userId, Collections.emptyMap());
-
-        // Build set of albums from songs the user has listened to
-        Set<String> listenedAlbumIds = new HashSet<>();
-        for (String songId : userHistory.keySet()) {
-            Song song = service.getSongById(songId);
-            if (song != null && song.getAlbum() != null) {
-                listenedAlbumIds.add(song.getAlbum().getId());
-            }
-        }
-
-        // Get all albums
-        List<Album> allAlbums = service.getAllAlbums();
-
-        // Score albums based on artist match with user preferences
-        List<ScoredAlbum> scoredAlbums = new ArrayList<>();
-        for (Album album : allAlbums) {
-            // Skip albums the user has already listened to
-            if (listenedAlbumIds.contains(album.getId())) {
-                continue;
+            Map<String, Integer> topArtists = getUserTopArtists(userId);
+            if (topArtists.isEmpty()) {
+                logger.info("No artist preferences found for user: {}", userId);
+                return Collections.emptyList();
             }
 
-            // Calculate score based on artist match
-            if (album.getArtist() != null) {
-                int score = topArtists.getOrDefault(album.getArtist().getId(), 0);
+            // Get all songs the user has listened to
+            Map<String, Integer> userHistory = userListeningHistory.getOrDefault(userId, Collections.emptyMap());
+            logger.debug("User has listened to {} songs", userHistory.size());
 
-                if (score > 0) {
-                    scoredAlbums.add(new ScoredAlbum(album, score));
+            // Build set of albums from songs the user has listened to
+            Set<String> listenedAlbumIds = new HashSet<>();
+            for (String songId : userHistory.keySet()) {
+                Song song = service.getSongById(songId);
+                if (song != null && song.getAlbum() != null) {
+                    listenedAlbumIds.add(song.getAlbum().getId());
                 }
             }
-        }
+            logger.debug("User has listened to songs from {} albums", listenedAlbumIds.size());
 
-        // Sort by score (descending) and return the top N albums
-        return scoredAlbums.stream()
-                .sorted(Comparator.comparingInt(ScoredAlbum::getScore).reversed())
-                .limit(limit)
-                .map(ScoredAlbum::getAlbum)
-                .collect(Collectors.toList());
+            // Get all albums
+            List<Album> allAlbums = service.getAllAlbums();
+            logger.debug("Found {} total albums for recommendation", allAlbums.size());
+
+            // Score albums based on artist match with user preferences
+            List<ScoredAlbum> scoredAlbums = new ArrayList<>();
+            for (Album album : allAlbums) {
+                // Skip albums the user has already listened to
+                if (listenedAlbumIds.contains(album.getId())) {
+                    continue;
+                }
+
+                // Calculate score based on artist match
+                if (album.getArtist() != null) {
+                    int score = topArtists.getOrDefault(album.getArtist().getId(), 0);
+
+                    if (score > 0) {
+                        scoredAlbums.add(new ScoredAlbum(album, score));
+                    }
+                }
+            }
+
+            // Sort by score (descending) and return the top N albums
+            List<Album> recommendations = scoredAlbums.stream()
+                    .sorted(Comparator.comparingInt(ScoredAlbum::getScore).reversed())
+                    .limit(limit)
+                    .map(ScoredAlbum::getAlbum)
+                    .collect(Collectors.toList());
+
+            logger.info("Generated {} album recommendations for user: {}", recommendations.size(), userId);
+
+            // Recommendation counter'ı artır
+            recommendationCounter.labels("album").inc();
+
+            return recommendations;
+        } catch (Exception e) {
+            logger.error("Error generating album recommendations: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        } finally {
+            timer.observeDuration();
+        }
     }
 
     /**
@@ -296,56 +434,76 @@ public class MusicRecommendationSystem {
      * @return List of recommended artists
      */
     public List<Artist> recommendArtists(String userId, int limit) {
-        // Get the user's top genres
-        Map<String, Integer> topGenres = getUserTopGenres(userId);
-        if (topGenres.isEmpty()) {
+        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("recommend_artists");
+        try {
+            logger.info("Generating artist recommendations for user: {}, limit: {}", userId, limit);
+
+            // Get the user's top genres
+            Map<String, Integer> topGenres = getUserTopGenres(userId);
+            if (topGenres.isEmpty()) {
+                logger.info("No genre preferences found for user: {}", userId);
+                return Collections.emptyList();
+            }
+
+            // Get artists the user has already listened to
+            Set<String> listenedArtistIds = userArtistPreferences.getOrDefault(userId, Collections.emptyMap()).keySet();
+            logger.debug("User has listened to {} artists", listenedArtistIds.size());
+
+            // Get all artists
+            List<Artist> allArtists = service.getAllArtists();
+            logger.debug("Found {} total artists for recommendation", allArtists.size());
+
+            // Score artists based on genre match with user preferences
+            List<ScoredArtist> scoredArtists = new ArrayList<>();
+            for (Artist artist : allArtists) {
+                // Skip artists the user already knows
+                if (listenedArtistIds.contains(artist.getId())) {
+                    continue;
+                }
+
+                // Calculate score based on genre match of artist's songs
+                List<Song> artistSongs = service.getSongsByArtist(artist.getId());
+
+                // Count genres for this artist's songs
+                Map<String, Integer> artistGenreCounts = new HashMap<>();
+                for (Song song : artistSongs) {
+                    String genre = song.getGenre();
+                    artistGenreCounts.put(genre, artistGenreCounts.getOrDefault(genre, 0) + 1);
+                }
+
+                // Calculate score based on overlap with user's preferred genres
+                int score = 0;
+                for (Map.Entry<String, Integer> entry : artistGenreCounts.entrySet()) {
+                    String genre = entry.getKey();
+                    int count = entry.getValue();
+                    int genreScore = topGenres.getOrDefault(genre, 0);
+                    score += count * genreScore;
+                }
+
+                if (score > 0) {
+                    scoredArtists.add(new ScoredArtist(artist, score));
+                }
+            }
+
+            // Sort by score (descending) and return the top N artists
+            List<Artist> recommendations = scoredArtists.stream()
+                    .sorted(Comparator.comparingInt(ScoredArtist::getScore).reversed())
+                    .limit(limit)
+                    .map(ScoredArtist::getArtist)
+                    .collect(Collectors.toList());
+
+            logger.info("Generated {} artist recommendations for user: {}", recommendations.size(), userId);
+
+            // Recommendation counter'ı artır
+            recommendationCounter.labels("artist").inc();
+
+            return recommendations;
+        } catch (Exception e) {
+            logger.error("Error generating artist recommendations: {}", e.getMessage(), e);
             return Collections.emptyList();
+        } finally {
+            timer.observeDuration();
         }
-
-        // Get artists the user has already listened to
-        Set<String> listenedArtistIds = userArtistPreferences.getOrDefault(userId, Collections.emptyMap()).keySet();
-
-        // Get all artists
-        List<Artist> allArtists = service.getAllArtists();
-
-        // Score artists based on genre match with user preferences
-        List<ScoredArtist> scoredArtists = new ArrayList<>();
-        for (Artist artist : allArtists) {
-            // Skip artists the user already knows
-            if (listenedArtistIds.contains(artist.getId())) {
-                continue;
-            }
-
-            // Calculate score based on genre match of artist's songs
-            List<Song> artistSongs = service.getSongsByArtist(artist.getId());
-
-            // Count genres for this artist's songs
-            Map<String, Integer> artistGenreCounts = new HashMap<>();
-            for (Song song : artistSongs) {
-                String genre = song.getGenre();
-                artistGenreCounts.put(genre, artistGenreCounts.getOrDefault(genre, 0) + 1);
-            }
-
-            // Calculate score based on overlap with user's preferred genres
-            int score = 0;
-            for (Map.Entry<String, Integer> entry : artistGenreCounts.entrySet()) {
-                String genre = entry.getKey();
-                int count = entry.getValue();
-                int genreScore = topGenres.getOrDefault(genre, 0);
-                score += count * genreScore;
-            }
-
-            if (score > 0) {
-                scoredArtists.add(new ScoredArtist(artist, score));
-            }
-        }
-
-        // Sort by score (descending) and return the top N artists
-        return scoredArtists.stream()
-                .sorted(Comparator.comparingInt(ScoredArtist::getScore).reversed())
-                .limit(limit)
-                .map(ScoredArtist::getArtist)
-                .collect(Collectors.toList());
     }
 
     /**
@@ -354,13 +512,19 @@ public class MusicRecommendationSystem {
      * @return True if successful, false otherwise
      */
     public boolean saveRecommendationData(String filepath) {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filepath))) {
-            oos.writeObject(userListeningHistory);
-            oos.writeObject(userGenrePreferences);
-            oos.writeObject(userArtistPreferences);
-            return true;
+        try {
+            logger.info("Saving recommendation data to: {}", filepath);
+
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filepath))) {
+                oos.writeObject(userListeningHistory);
+                oos.writeObject(userGenrePreferences);
+                oos.writeObject(userArtistPreferences);
+
+                logger.info("Successfully saved recommendation data");
+                return true;
+            }
         } catch (Exception e) {
-            System.err.println("Error saving recommendation data: " + e.getMessage());
+            logger.error("Error saving recommendation data: {}", e.getMessage(), e);
             return false;
         }
     }
@@ -372,13 +536,19 @@ public class MusicRecommendationSystem {
      */
     @SuppressWarnings("unchecked")
     public boolean loadRecommendationData(String filepath) {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filepath))) {
-            userListeningHistory = (Map<String, Map<String, Integer>>) ois.readObject();
-            userGenrePreferences = (Map<String, Map<String, Integer>>) ois.readObject();
-            userArtistPreferences = (Map<String, Map<String, Integer>>) ois.readObject();
-            return true;
+        try {
+            logger.info("Loading recommendation data from: {}", filepath);
+
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filepath))) {
+                userListeningHistory = (Map<String, Map<String, Integer>>) ois.readObject();
+                userGenrePreferences = (Map<String, Map<String, Integer>>) ois.readObject();
+                userArtistPreferences = (Map<String, Map<String, Integer>>) ois.readObject();
+
+                logger.info("Successfully loaded recommendation data for {} users", userListeningHistory.size());
+                return true;
+            }
         } catch (Exception e) {
-            System.err.println("Error loading recommendation data: " + e.getMessage());
+            logger.error("Error loading recommendation data: {}", e.getMessage(), e);
             return false;
         }
     }
