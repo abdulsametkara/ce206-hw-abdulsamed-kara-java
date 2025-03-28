@@ -902,4 +902,22 @@ public class MusicCollectionService {
             timer.observeDuration();
         }
     }
+
+    public void reinitializeDatabase() {
+        try {
+            // Veritabanını yeniden başlat
+            DatabaseUtil.setShouldResetDatabase(true);
+            DatabaseUtil.initializeDatabase();
+
+            // Koleksiyonları temizle ve yeniden yükle
+            artistCollection.clear();
+            albumCollection.clear();
+            songCollection.clear();
+            playlistCollection.clear();
+
+            logger.info("Database and collections reinitialized successfully");
+        } catch (Exception e) {
+            logger.error("Error reinitializing database: {}", e.getMessage(), e);
+        }
+    }
 }

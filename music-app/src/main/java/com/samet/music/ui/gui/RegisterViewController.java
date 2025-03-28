@@ -1,5 +1,6 @@
 package com.samet.music.ui.gui;
 
+import com.samet.music.dao.UserDAO;
 import com.samet.music.service.security.KeycloakService;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -9,8 +10,16 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 
 public class RegisterViewController {
+
+    private static final Logger logger = LoggerFactory.getLogger(RegisterViewController.class);
+    private final UserDAO userDAO = new UserDAO();
+
 
     @FXML private TextField usernameField;
     @FXML private TextField emailField;
@@ -29,17 +38,42 @@ public class RegisterViewController {
         }
 
         String username = usernameField.getText().trim();
-        // Basit kayıt işlemi - gerçek bir kayıt yapmaz, sadece başarılı görünür
-        messageLabel.setText("Registration successful! You can now login.");
+        String password = passwordField.getText().trim();
+        String email = emailField.getText().trim();
+        String firstName = firstNameField.getText().trim();
+        String lastName = lastNameField.getText().trim();
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-                javafx.application.Platform.runLater(this::navigateToLogin);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+        // UserDAO kullanarak kullanıcıyı kaydet
+        UserDAO userDAO = new UserDAO();
+
+        // Önce tabloyu oluştur (eğer yoksa)
+        userDAO.createTable();
+
+        // Kullanıcının daha önce kayıtlı olup olmadığını kontrol et
+        if (userDAO.userExists(username)) {
+            messageLabel.setText("Username already exists. Please choose another one.");
+            return;
+        }
+
+        // Kullanıcıyı kaydet
+        boolean success = userDAO.saveUser(username, password);
+
+        if (success) {
+            logger.info("User registered successfully: {}", username);
+            messageLabel.setText("Registration successful! You can now login.");
+
+            new Thread(() -> {
+                try {
+                    Thread.sleep(2000);
+                    javafx.application.Platform.runLater(this::navigateToLogin);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        } else {
+            logger.error("Failed to register user: {}", username);
+            messageLabel.setText("Registration failed. Please try again.");
+        }
     }
 
     private boolean validateForm() {
