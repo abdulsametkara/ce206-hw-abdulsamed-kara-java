@@ -7,7 +7,9 @@ services:
     # Veya hazır bir image kullanıyorsanız:
     # image: your-docker-registry/music-app:latest
     ports:
-      - "8080:8080"
+     - "6080:6080"  # NoVNC için
+     - "5901:5901"  # VNC için
+     - "8080:8080"  # Uygulama portu için
     logging:
       driver: "json-file"
       options:

@@ -1,5 +1,6 @@
 package com.samet.music.service.security;
 
+import com.samet.music.dao.UserDAO;
 import com.samet.music.model.security.User;
 import com.samet.music.monitoring.MetricsCollector;
 import io.prometheus.client.Counter;
@@ -40,20 +41,23 @@ public class SessionManager {
         return instance;
     }
 
+    // login metodunu güncelleyin
     public boolean login(String username, String password) {
         try {
             logger.info("Login attempt for user: {}", username);
 
-            // Basit kullanıcı doğrulama kullanın
-            if ((username.equals("admin") && password.equals("admin")) ||
-                    (username.equals("user") && password.equals("password"))) {
+            // UserDAO kullanarak veritabanından kullanıcıyı kontrol et
+            UserDAO userDAO = new UserDAO();
+            String savedPassword = userDAO.getPassword(username);
 
-                // Test kullanıcısı oluştur
+            // Eğer veritabanında kayıt varsa, şifreyi kontrol et
+            if (savedPassword != null && savedPassword.equals(password)) {
+                // Başarılı giriş
                 User testUser = new User();
-                testUser.setId("test-user-id-" + System.currentTimeMillis());
+                testUser.setId("user-id-" + System.currentTimeMillis());
                 testUser.setUsername(username);
                 testUser.setEmail(username + "@example.com");
-                testUser.setFirstName(username.substring(0, 1).toUpperCase() + username.substring(1));
+                testUser.setFirstName(username);
                 testUser.setLastName("User");
 
                 Set<String> roles = new HashSet<>();
@@ -64,6 +68,32 @@ public class SessionManager {
                     roles.add("user");
                     logger.info("User {} logged in with user role", username);
                 }
+                testUser.setRoles(roles);
+
+                currentUser = testUser;
+
+                // Login counter'ı artır
+                loginCounter.inc();
+
+                // Aktif kullanıcı sayısını güncelle
+                MetricsCollector.getInstance().setActiveUsers(1);
+
+                return true;
+            }
+
+            // Hardcoded admin kontrol (yedek olarak tutalım)
+            if ((username.equals("admin") && password.equals("admin"))) {
+                // Yukarıdaki admin kullanıcı oluşturma kodu
+                User testUser = new User();
+                testUser.setId("admin-id-" + System.currentTimeMillis());
+                testUser.setUsername(username);
+                testUser.setEmail(username + "@example.com");
+                testUser.setFirstName(username.substring(0, 1).toUpperCase() + username.substring(1));
+                testUser.setLastName("User");
+
+                Set<String> roles = new HashSet<>();
+                roles.add("admin");
+                logger.info("User {} logged in with admin role", username);
                 testUser.setRoles(roles);
 
                 currentUser = testUser;
