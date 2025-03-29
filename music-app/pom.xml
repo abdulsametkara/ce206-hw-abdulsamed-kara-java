@@ -20,16 +20,29 @@
 	</properties>
 
 	<dependencies>
+		<!-- Testing Dependencies -->
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.11</version>
+			<version>4.13.2</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
 			<version>1.3</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>4.0.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>4.0.0</version>
 			<scope>test</scope>
 		</dependency>
 		
@@ -44,7 +57,7 @@
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<version>1.2.6</version>
+			<version>1.2.11</version>
 		</dependency>
 
 		<!-- SQLite JDBC Driver -->
@@ -54,7 +67,52 @@
 			<version>3.42.0.0</version>
 		</dependency>
 		
-		<!-- HikariCP - Bağlantı Havuzu -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+			<version>1.9.0</version>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-core</artifactId>
+			<version>1.9.0</version>
+		</dependency>
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient</artifactId>
+			<version>0.16.0</version>
+		</dependency>
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_hotspot</artifactId>
+			<version>0.16.0</version>
+		</dependency>
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient_httpserver</artifactId>
+			<version>0.16.0</version>
+		</dependency>
+
+		<!-- Logstash Logback Encoder -->
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>7.4</version>
+		</dependency>
+		
+		<!-- Keycloak Dependencies -->
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-spring-boot-starter</artifactId>
+			<version>21.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-admin-client</artifactId>
+			<version>21.1.1</version>
+		</dependency>
+		
+		<!-- HikariCP - Connection Pool -->
 		<dependency>
 			<groupId>com.zaxxer</groupId>
 			<artifactId>HikariCP</artifactId>
@@ -109,10 +167,8 @@
 				<version>0.0.8</version>
 				<configuration>
 					<mainClass>com.samet.music.ui.gui.MusicLibraryApp</mainClass>
-					<options>
-						<option>--add-opens</option>
-						<option>java.base/java.lang=ALL-UNNAMED</option>
-					</options>
+					<launcher>musicapp</launcher>
+					<jlinkImageName>musicapp</jlinkImageName>
 				</configuration>
 			</plugin>
 			
@@ -149,11 +205,20 @@
 				</executions>
 			</plugin>
 
+			<!-- Maven Site Plugin - Updated version -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-site-plugin</artifactId>
-				<version>3.12.1</version>
+				<version>3.9.1</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.maven.doxia</groupId>
+						<artifactId>doxia-module-markdown</artifactId>
+						<version>1.9.1</version>
+					</dependency>
+				</dependencies>
 				<configuration>
+					<locales>en</locales>
 					<port>9000</port>
 					<tempWebappDirectory>${basedir}/target/site</tempWebappDirectory>
 				</configuration>
@@ -171,11 +236,19 @@
 						</goals>
 						<configuration>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<transformers>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>
-										com.samet.music.ui.gui.MusicLibraryApp</mainClass>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>com.samet.music.ui.gui.MusicLibraryApp</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>
@@ -216,13 +289,43 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-site-plugin</artifactId>
-					<version>3.12.1</version>
+					<version>3.9.1</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-project-info-reports-plugin</artifactId>
-					<version>3.5.0</version>
+					<version>3.1.2</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>
 	</build>
+
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.1.2</version>
+			</plugin>
+			
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>report</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
+	
+	<!-- Maven Site Configuration -->
+	<distributionManagement>
+		<site>
+			<id>website</id>
+			<url>file://${project.build.directory}/site</url>
+		</site>
+	</distributionManagement>
 </project>
