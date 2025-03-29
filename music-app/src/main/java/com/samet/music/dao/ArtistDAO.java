@@ -148,7 +148,6 @@ public class ArtistDAO {
 
     public void update(Artist artist) {
         synchronized (LOCK) {
-
             String sql = "UPDATE artists SET name = ?, biography = ? WHERE id = ?";
 
             try (Connection conn = DatabaseUtil.getConnection();
@@ -159,7 +158,7 @@ public class ArtistDAO {
                 pstmt.setString(3, artist.getId());
 
                 int result = pstmt.executeUpdate();
-                System.out.println("Update result: " + result + " row(s) affected");
+                System.out.println("Update artist result: " + result + " row(s) affected");
 
                 // Önbelleği güncelle
                 artistCache.put(artist.getId(), artist);
@@ -188,6 +187,117 @@ public class ArtistDAO {
 
             } catch (SQLException e) {
                 System.err.println("Error deleting artist: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void removeDuplicateArtists() {
+        synchronized (LOCK) {
+            try {
+                // Önce tüm sanatçıları al
+                List<Artist> allArtists = getAll();
+
+                // İsme göre grupla (ilk ID'yi tut)
+                Map<String, String> nameToIdMap = new HashMap<>();
+
+                for (Artist artist : allArtists) {
+                    String name = artist.getName();
+                    if (!nameToIdMap.containsKey(name)) {
+                        nameToIdMap.put(name, artist.getId());
+                        System.out.println("Keeping artist: " + name + " with ID: " + artist.getId());
+                    } else {
+                        String keepId = nameToIdMap.get(name);
+                        String duplicateId = artist.getId();
+
+                        System.out.println("Found duplicate artist: " + name +
+                                " - keeping ID: " + keepId +
+                                ", removing ID: " + duplicateId);
+
+                        // Albüm ve şarkı referanslarını güncelle
+                        try (Connection conn = DatabaseUtil.getConnection()) {
+                            // Albümleri güncelle
+                            PreparedStatement updateAlbums = conn.prepareStatement(
+                                    "UPDATE albums SET artist_id = ? WHERE artist_id = ?");
+                            updateAlbums.setString(1, keepId);
+                            updateAlbums.setString(2, duplicateId);
+                            int albumsUpdated = updateAlbums.executeUpdate();
+                            System.out.println("Updated " + albumsUpdated + " albums");
+
+                            // Şarkıları güncelle
+                            PreparedStatement updateSongs = conn.prepareStatement(
+                                    "UPDATE songs SET artist_id = ? WHERE artist_id = ?");
+                            updateSongs.setString(1, keepId);
+                            updateSongs.setString(2, duplicateId);
+                            int songsUpdated = updateSongs.executeUpdate();
+                            System.out.println("Updated " + songsUpdated + " songs");
+
+                            // Duplike sanatçıyı sil
+                            PreparedStatement deleteArtist = conn.prepareStatement(
+                                    "DELETE FROM artists WHERE id = ?");
+                            deleteArtist.setString(1, duplicateId);
+                            int deleted = deleteArtist.executeUpdate();
+                            System.out.println("Deleted " + deleted + " duplicate artist records");
+                        }
+                    }
+                }
+
+                // Önbelleği temizle
+                artistCache.clear();
+
+            } catch (SQLException e) {
+                System.err.println("Error removing duplicate artists: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void mergeArtists(String primaryArtistId, String duplicateArtistId) {
+        synchronized (LOCK) {
+            try (Connection conn = DatabaseUtil.getConnection()) {
+                // Transaction başlat
+                conn.setAutoCommit(false);
+
+                try {
+                    // Albümleri güncelle
+                    PreparedStatement updateAlbums = conn.prepareStatement(
+                            "UPDATE albums SET artist_id = ? WHERE artist_id = ?");
+                    updateAlbums.setString(1, primaryArtistId);
+                    updateAlbums.setString(2, duplicateArtistId);
+                    int albumsUpdated = updateAlbums.executeUpdate();
+
+                    // Şarkıları güncelle
+                    PreparedStatement updateSongs = conn.prepareStatement(
+                            "UPDATE songs SET artist_id = ? WHERE artist_id = ?");
+                    updateSongs.setString(1, primaryArtistId);
+                    updateSongs.setString(2, duplicateArtistId);
+                    int songsUpdated = updateSongs.executeUpdate();
+
+                    // Duplike sanatçıyı sil
+                    PreparedStatement deleteArtist = conn.prepareStatement(
+                            "DELETE FROM artists WHERE id = ?");
+                    deleteArtist.setString(1, duplicateArtistId);
+                    int artistDeleted = deleteArtist.executeUpdate();
+
+                    // Önbellekten kaldır
+                    artistCache.remove(duplicateArtistId);
+
+                    // Transaction'ı tamamla
+                    conn.commit();
+
+                    System.out.println("Merged artist " + duplicateArtistId + " into " + primaryArtistId +
+                            ": Updated " + albumsUpdated + " albums, " +
+                            songsUpdated + " songs, deleted " + artistDeleted + " artist record");
+                } catch (SQLException e) {
+                    // Hata durumunda geri al
+                    conn.rollback();
+                    throw e;
+                } finally {
+                    // Otomatik commit'i geri yükle
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                System.err.println("Error merging artists: " + e.getMessage());
                 e.printStackTrace();
             }
         }

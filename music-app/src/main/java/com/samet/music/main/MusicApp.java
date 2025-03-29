@@ -1,4 +1,5 @@
 package com.samet.music.main;
+import com.samet.music.dao.ArtistDAO;
 import com.samet.music.ui.gui.MusicLibraryApp;
 import com.samet.music.util.DatabaseUtil;
 
@@ -17,6 +18,9 @@ public class MusicApp {
 
     // Veritabanını başlat
     DatabaseUtil.initializeDatabase();
+
+      ArtistDAO artistDAO = new ArtistDAO();
+      artistDAO.removeDuplicateArtists();
 
     // GUI uygulamasını başlat - bu satırı değiştir
     javafx.application.Application.launch(com.samet.music.ui.gui.MusicLibraryApp.class, args);

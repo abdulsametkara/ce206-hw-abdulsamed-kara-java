@@ -3,8 +3,10 @@ package com.samet.music.repository;
 import com.samet.music.dao.ArtistDAO;
 import com.samet.music.model.Artist;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class ArtistCollection extends MusicCollectionManager<Artist> {
     private static ArtistCollection instance;
@@ -52,20 +54,54 @@ public class ArtistCollection extends MusicCollectionManager<Artist> {
         return artist;
     }
 
+    // ArtistCollection.java sınıfında getAll metodunu değiştirelim
     @Override
     public List<Artist> getAll() {
-        // Veritabanından tüm sanatçıları çek
-        List<Artist> artists = artistDAO.getAll();
+        // Önce veritabanından çekelim
+        List<Artist> allArtists = artistDAO.getAll();
 
-        // Hafızadaki koleksiyonu temizle
-        clear();
-
-        // Tüm sanatçıları hafızaya ekle
-        for (Artist artist : artists) {
-            super.add(artist);
+        // Benzersiz sanatçıları saklamak için bir Map oluşturalım
+        Map<String, Artist> uniqueArtistsById = new HashMap<>();
+        for (Artist artist : allArtists) {
+            uniqueArtistsById.put(artist.getId(), artist);
         }
 
-        return new ArrayList<>(items.values());
+        // İsim çakışmalarını kontrol edelim
+        Map<String, List<Artist>> artistsByName = new HashMap<>();
+        for (Artist artist : uniqueArtistsById.values()) {
+            String name = artist.getName().toLowerCase();
+            if (!artistsByName.containsKey(name)) {
+                artistsByName.put(name, new ArrayList<>());
+            }
+            artistsByName.get(name).add(artist);
+        }
+
+        // İsim çakışması olan sanatçıları birleştirelim
+        for (List<Artist> artistsWithSameName : artistsByName.values()) {
+            if (artistsWithSameName.size() > 1) {
+                // İlk sanatçıyı temel olarak alalım
+                Artist primaryArtist = artistsWithSameName.get(0);
+
+                // Diğer sanatçılardan veri birleştirelim
+                for (int i = 1; i < artistsWithSameName.size(); i++) {
+                    Artist duplicateArtist = artistsWithSameName.get(i);
+
+                    // İlgili albüm ve şarkıları birincil sanatçıya atayalım
+                    artistDAO.mergeArtists(primaryArtist.getId(), duplicateArtist.getId());
+
+                    // Eşleme haritasından duplike sanatçıyı çıkaralım
+                    uniqueArtistsById.remove(duplicateArtist.getId());
+                }
+            }
+        }
+
+        // Hafızadaki koleksiyonu temizleyip güncelleyelim
+        clear();
+        for (Artist artist : uniqueArtistsById.values()) {
+            add(artist);
+        }
+
+        return new ArrayList<>(uniqueArtistsById.values());
     }
 
     @Override
