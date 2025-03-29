@@ -3,14 +3,19 @@ package com.samet.music.dao;
 import static org.junit.Assert.*;
 import org.junit.*;
 
+import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.List;
 
 import com.samet.music.model.Album;
 import com.samet.music.model.Artist;
 import com.samet.music.util.DatabaseUtil;
+
 
 /**
  * @class AlbumDAOTest
@@ -195,5 +200,170 @@ public class AlbumDAOTest {
         } catch (Exception e) {
             fail("Album ID'si ayarlanamadı: " + e.getMessage());
         }
+    }
+    /**
+     * @brief Boş veritabanında getAll metodu test edilir
+     */
+    @Test
+    public void testGetAllWithEmptyDatabase() {
+        // Act - getAll metodunu çağır
+        List<Album> albums = albumDAO.getAll();
+
+        // Assert - Liste boş olmalı
+        assertNotNull("Album listesi null olmamalı", albums);
+        assertTrue("Boş veritabanı için albüm listesi boş olmalı", albums.isEmpty());
+    }
+
+    /**
+     * @brief Tek albüm içeren veritabanında getAll metodu test edilir
+     */
+    @Test
+    public void testGetAllWithSingleAlbum() {
+        // Arrange - Bir albüm ekle
+        Album album = new Album("Test Album 1", testArtist, 2020);
+        album.setGenre("Rock");
+        albumDAO.insert(album);
+
+        // Act - getAll metodunu çağır
+        List<Album> albums = albumDAO.getAll();
+
+        // Assert - Sonuçları kontrol et
+
+    }
+
+    /**
+     * @brief Çoklu albüm içeren veritabanında getAll metodu test edilir
+     */
+    @Test
+    public void testGetAllWithMultipleAlbums() {
+        // Arrange - Birden fazla albüm ekle
+        Album album1 = new Album("Test Album 1", testArtist, 2020);
+        album1.setGenre("Rock");
+        albumDAO.insert(album1);
+
+        Album album2 = new Album("Test Album 2", testArtist, 2021);
+        album2.setGenre("Pop");
+        albumDAO.insert(album2);
+
+        Album album3 = new Album("Test Album 3", testArtist, 2022);
+        album3.setGenre("Jazz");
+        albumDAO.insert(album3);
+
+        // Act - getAll metodunu çağır
+        List<Album> albums = albumDAO.getAll();
+
+        // Assert - Sonuçları kontrol et
+        assertNotNull("Album listesi null olmamalı", albums);
+        assertEquals("Album listesi üç eleman içermeli", 3, albums.size());
+
+        // Albüm adlarını kontrol et
+        Set<String> albumNames = new HashSet<>();
+        for (Album album : albums) {
+            albumNames.add(album.getName());
+        }
+        assertTrue("Album 1 listede olmalı", albumNames.contains("Test Album 1"));
+        assertTrue("Album 2 listede olmalı", albumNames.contains("Test Album 2"));
+        assertTrue("Album 3 listede olmalı", albumNames.contains("Test Album 3"));
+    }
+
+    /**
+     * @brief getAll metodunun tekrarlanan ID'leri işlemediğini test eder
+     */
+
+    /**
+     * @brief getAll metodunun albüm-sanatçı ilişkisini doğru kurduğunu test eder
+     */
+    @Test
+    public void testGetAllIncludesCorrectArtistReferences() {
+        // Arrange - İki farklı albüm ekle
+        Album album1 = new Album("Test Album 1", testArtist, 2020);
+        album1.setGenre("Rock");
+        albumDAO.insert(album1);
+
+        Album album2 = new Album("Test Album 2", testArtist, 2021);
+        album2.setGenre("Pop");
+        albumDAO.insert(album2);
+
+        // Act - getAll metodunu çağır
+        List<Album> albums = albumDAO.getAll();
+
+        // Assert - Sonuçları kontrol et
+        assertNotNull("Album listesi null olmamalı", albums);
+        assertEquals("Album listesi iki eleman içermeli", 2, albums.size());
+
+        // Tüm albümlerin sanatçı referanslarını kontrol et
+        for (Album album : albums) {
+            assertNotNull("Album sanatçısı null olmamalı", album.getArtist());
+            assertEquals("Album sanatçı ID'si eşleşmiyor", testArtist.getId(), album.getArtist().getId());
+            assertEquals("Album sanatçı adı eşleşmiyor", testArtist.getName(), album.getArtist().getName());
+        }
+    }
+
+    /**
+     * @brief Belirli bir sanatçıya ait albümleri getirme testini yapar
+     */
+    @Test
+    public void testGetByArtist() {
+        // Arrange - Test verileri hazırla
+        Album album1 = new Album("Album 1", testArtist, 2020);
+        album1.setGenre("Rock");
+        albumDAO.insert(album1);
+
+        Album album2 = new Album("Album 2", testArtist, 2021);
+        album2.setGenre("Pop");
+        albumDAO.insert(album2);
+
+        // Farklı bir sanatçı oluştur
+        Artist differentArtist = new Artist("Different Artist", "Different Bio");
+        artistDAO.insert(differentArtist);
+
+        Album album3 = new Album("Album 3", differentArtist, 2022);
+        album3.setGenre("Jazz");
+        albumDAO.insert(album3);
+
+        // Act - Test sanatçısına ait albümleri getir
+        List<Album> artistAlbums = albumDAO.getByArtist(testArtist);
+
+        // Assert - Sonuçları kontrol et
+        assertNotNull("Albüm listesi null olmamalı", artistAlbums);
+        assertEquals("Test sanatçısına ait 2 albüm olmalı", 2, artistAlbums.size());
+
+        // Albüm bilgilerini kontrol et
+        Set<String> albumNames = new HashSet<>();
+        for (Album album : artistAlbums) {
+            // Her albümün doğru sanatçıya ait olduğunu kontrol et
+            assertEquals("Albüm sanatçısı eşleşmiyor", testArtist.getId(), album.getArtist().getId());
+            albumNames.add(album.getName());
+        }
+
+        // Belirli albümlerin varlığını kontrol et
+        assertTrue("Album 1 listede olmalı", albumNames.contains("Album 1"));
+        assertTrue("Album 2 listede olmalı", albumNames.contains("Album 2"));
+    }
+
+    /**
+     * @brief Hiçbir albüm olmayan bir sanatçı için getByArtist metodunu test eder
+     */
+    @Test
+    public void testGetByArtistWithNoAlbums() {
+        // Arrange - Yeni bir sanatçı oluştur
+        Artist noAlbumArtist = new Artist("No Album Artist", "No Album Bio");
+        artistDAO.insert(noAlbumArtist);
+
+        // Act - Albümü olmayan sanatçı için getByArtist metodunu çağır
+        List<Album> artistAlbums = albumDAO.getByArtist(noAlbumArtist);
+
+        // Assert - Sonuçları kontrol et
+        assertNotNull("Albüm listesi null olmamalı", artistAlbums);
+        assertTrue("Albüm listesi boş olmalı", artistAlbums.isEmpty());
+    }
+
+    /**
+     * @brief Null sanatçı için getByArtist metodunu test eder
+     */
+    @Test(expected = NullPointerException.class)
+    public void testGetByArtistWithNullArtist() {
+        // Act - Null sanatçı ile getByArtist metodunu çağır
+        albumDAO.getByArtist(null);
     }
 }
