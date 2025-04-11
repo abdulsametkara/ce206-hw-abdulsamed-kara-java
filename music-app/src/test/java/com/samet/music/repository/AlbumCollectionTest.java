@@ -1,322 +1,215 @@
-//package com.samet.music.repository;
-//
-//import static org.junit.Assert.*;
-//import org.junit.*;
-//
-//import com.samet.music.model.Album;
-//import com.samet.music.model.Artist;
-//import com.samet.music.util.DatabaseManager;
-//
-//import java.lang.reflect.Field;
-//import java.util.List;
-//
-///**
-// * @class AlbumCollectionTest
-// * @brief AlbumCollection sınıfı için test sınıfı
-// */
-//public class AlbumCollectionTest {
-//
-//    private AlbumCollection albumCollection;
-//    private ArtistCollection artistCollection;
-//    private Artist testArtist;
-//    private Album testAlbum;
-//
-//    /**
-//     * @brief Tüm testlerden önce bir kez çalıştırılır
-//     */
-//    @BeforeClass
-//    public static void setUpBeforeClass() throws Exception {
-//        // Veritabanını test modunda başlat
-//        DatabaseManager.setShouldResetDatabase(true);
-//        DatabaseManager.initializeDatabase();
-//    }
-//
-//    /**
-//     * @brief Her testten önce çalıştırılır
-//     */
-//    @Before
-//    public void setUp() throws Exception {
-//        // Singleton örneklerini sıfırla
-//        resetSingleton(AlbumCollection.class, "instance");
-//        resetSingleton(ArtistCollection.class, "instance");
-//
-//        // Koleksiyon örneklerini al
-//        albumCollection = AlbumCollection.getInstance();
-//        artistCollection = ArtistCollection.getInstance();
-//
-//        // Test verilerini oluştur
-//        testArtist = new Artist("Test Artist", "Test Biography");
-//        artistCollection.add(testArtist); // Sanatçıyı veritabanına ekle
-//
-//        testAlbum = new Album("Test Album", testArtist, 2023);
-//        testAlbum.setGenre("Rock");
-//    }
-//
-//    /**
-//     * @brief Her testten sonra çalıştırılır
-//     */
-//    @After
-//    public void tearDown() throws Exception {
-//        // Koleksiyonları temizle
-//        if (albumCollection != null) {
-//            albumCollection.clear();
-//        }
-//
-//        if (artistCollection != null) {
-//            artistCollection.clear();
-//        }
-//    }
-//
-//    /**
-//     * @brief Reflection kullanarak singleton örneğini sıfırlar
-//     */
-//    private void resetSingleton(Class<?> clazz, String fieldName) throws Exception {
-//        Field instance = clazz.getDeclaredField(fieldName);
-//        instance.setAccessible(true);
-//        instance.set(null, null);
-//    }
-//
-//    /**
-//     * @brief getInstance metodunu test eder
-//     */
-//    @Test
-//    public void testGetInstance() {
-//        // Arrange & Act
-//        AlbumCollection instance1 = AlbumCollection.getInstance();
-//        AlbumCollection instance2 = AlbumCollection.getInstance();
-//
-//        // Assert
-//        assertNotNull("getInstance null döndürmemeli", instance1);
-//        assertSame("getInstance her zaman aynı örneği döndürmeli", instance1, instance2);
-//    }
-//
-//    /**
-//     * @brief add metodunu test eder
-//     */
-//    @Test
-//    public void testAdd() {
-//        // Arrange
-//        Album album = new Album("Add Test Album", testArtist, 2022);
-//
-//        // Act
-//        albumCollection.add(album);
-//
-//        // Assert
-//        Album retrieved = albumCollection.getById(album.getId());
-//        assertNotNull("Eklenen albüm getById ile alınabilmeli", retrieved);
-//        assertEquals("Eklenen albüm adı doğru olmalı", "Add Test Album", retrieved.getName());
-//        assertEquals("Eklenen albüm sanatçısı doğru olmalı", testArtist.getId(), retrieved.getArtist().getId());
-//    }
-//
-//    /**
-//     * @brief getById metodunu test eder - albüm koleksiyonda varken
-//     */
-//    @Test
-//    public void testGetByIdWhenInCollection() {
-//        // Arrange
-//        albumCollection.add(testAlbum);
-//
-//        // Act
-//        Album result = albumCollection.getById(testAlbum.getId());
-//
-//        // Assert
-//        assertNotNull("Albüm bulunmalı", result);
-//        assertEquals("Bulunan albüm ID'si eşleşmeli", testAlbum.getId(), result.getId());
-//        assertEquals("Bulunan albüm adı eşleşmeli", testAlbum.getName(), result.getName());
-//    }
-//
-//    /**
-//     * @brief getAll metodunu test eder
-//     */
-//    @Test
-//    public void testGetAll() {
-//        // Arrange
-//        Album album1 = new Album("Album 1", testArtist, 2021);
-//        Album album2 = new Album("Album 2", testArtist, 2022);
-//
-//        albumCollection.add(album1);
-//        albumCollection.add(album2);
-//
-//        // Act
-//        List<Album> allAlbums = albumCollection.getAll();
-//
-//        // Assert
-//        assertNotNull("getAll null döndürmemeli", allAlbums);
-//
-//        // ID'lere göre albümlerin varlığını kontrol et
-//        boolean foundAlbum1 = false;
-//        boolean foundAlbum2 = false;
-//
-//        for (Album album : allAlbums) {
-//            if (album.getId().equals(album1.getId())) foundAlbum1 = true;
-//            if (album.getId().equals(album2.getId())) foundAlbum2 = true;
-//        }
-//
-//        assertTrue("Album1 koleksiyonda olmalı", foundAlbum1);
-//        assertTrue("Album2 koleksiyonda olmalı", foundAlbum2);
-//    }
-//
-//    /**
-//     * @brief remove metodunu test eder
-//     */
-//    @Test
-//    public void testRemove() {
-//        // Arrange
-//        albumCollection.add(testAlbum);
-//        String albumId = testAlbum.getId();
-//
-//        // Act
-//        boolean result = albumCollection.remove(albumId);
-//
-//        // Assert
-//        assertTrue("Silme işlemi başarılı olmalı", result);
-//        assertNull("Silinen albüm getById ile alınamamalı", albumCollection.getById(albumId));
-//    }
-//
-//    /**
-//     * @brief searchByName metodunu test eder
-//     */
-//    @Test
-//    public void testSearchByName() {
-//        // Arrange
-//        Album album1 = new Album("Rock Album", testArtist, 2021);
-//        Album album2 = new Album("Pop Album", testArtist, 2022);
-//        Album album3 = new Album("Jazz Album", testArtist, 2023);
-//
-//        albumCollection.add(album1);
-//        albumCollection.add(album2);
-//        albumCollection.add(album3);
-//
-//        // Act
-//        List<Album> results = albumCollection.searchByName("Rock");
-//
-//        // Assert
-//        assertNotNull("searchByName null döndürmemeli", results);
-//        assertEquals("1 albüm bulunmalı", 1, results.size());
-//        assertEquals("Doğru albüm bulunmalı", album1.getId(), results.get(0).getId());
-//
-//        // Case insensitive arama
-//        List<Album> caseInsensitiveResults = albumCollection.searchByName("jazz");
-//        assertEquals("Büyük/küçük harf duyarsız arama 1 albüm bulmalı", 1, caseInsensitiveResults.size());
-//        assertEquals("Doğru albüm bulunmalı", album3.getId(), caseInsensitiveResults.get(0).getId());
-//    }
-//
-//    /**
-//     * @brief searchByName metodunu null ve boş string ile test eder
-//     */
-//    @Test
-//    public void testSearchByNameWithNullAndEmpty() {
-//        // Arrange
-//        albumCollection.add(testAlbum);
-//
-//        // Act & Assert
-//        assertTrue("Null ile arama boş liste döndürmeli", albumCollection.searchByName(null).isEmpty());
-//        assertTrue("Boş string ile arama boş liste döndürmeli", albumCollection.searchByName("").isEmpty());
-//        assertTrue("Sadece boşluk içeren string ile arama boş liste döndürmeli", albumCollection.searchByName("  ").isEmpty());
-//    }
-//
-//    /**
-//     * @brief getByArtist metodunu test eder
-//     */
-//    @Test
-//    public void testGetByArtist() {
-//        // Arrange
-//        Artist artist1 = new Artist("Artist 1", "Bio 1");
-//        Artist artist2 = new Artist("Artist 2", "Bio 2");
-//
-//        artistCollection.add(artist1);
-//        artistCollection.add(artist2);
-//
-//        Album album1 = new Album("Album 1", artist1, 2021);
-//        Album album2 = new Album("Album 2", artist1, 2022);
-//        Album album3 = new Album("Album 3", artist2, 2023);
-//
-//        albumCollection.add(album1);
-//        albumCollection.add(album2);
-//        albumCollection.add(album3);
-//
-//        // Act
-//        List<Album> results = albumCollection.getByArtist(artist1);
-//
-//        // Assert
-//        assertNotNull("getByArtist null döndürmemeli", results);
-//        assertEquals("Artist1 için 2 albüm bulunmalı", 2, results.size());
-//
-//        // ID'lere göre albümlerin varlığını kontrol et
-//        boolean foundAlbum1 = false;
-//        boolean foundAlbum2 = false;
-//
-//        for (Album album : results) {
-//            if (album.getId().equals(album1.getId())) foundAlbum1 = true;
-//            if (album.getId().equals(album2.getId())) foundAlbum2 = true;
-//        }
-//
-//        assertTrue("Album1 sonuçlarda olmalı", foundAlbum1);
-//        assertTrue("Album2 sonuçlarda olmalı", foundAlbum2);
-//    }
-//
-//    /**
-//     * @brief getByGenre metodunu test eder
-//     */
-//    @Test
-//    public void testGetByGenre() {
-//        // Arrange
-//        Album album1 = new Album("Album 1", testArtist, 2021);
-//        album1.setGenre("Rock");
-//
-//        Album album2 = new Album("Album 2", testArtist, 2022);
-//        album2.setGenre("Pop");
-//
-//        Album album3 = new Album("Album 3", testArtist, 2023);
-//        album3.setGenre("Rock/Metal");
-//
-//        albumCollection.add(album1);
-//        albumCollection.add(album2);
-//        albumCollection.add(album3);
-//
-//        // Act
-//        List<Album> results = albumCollection.getByGenre("Rock");
-//
-//        // Assert
-//        assertNotNull("getByGenre null döndürmemeli", results);
-//
-//
-//        // ID'lere göre albümlerin varlığını kontrol et
-//        boolean foundAlbum1 = false;
-//        boolean foundAlbum3 = false;
-//
-//        for (Album album : results) {
-//            if (album.getId().equals(album1.getId())) foundAlbum1 = true;
-//            if (album.getId().equals(album3.getId())) foundAlbum3 = true;
-//        }
-//
-//        assertTrue("Album1 (Rock) sonuçlarda olmalı", foundAlbum1);
-//        assertTrue("Album3 (Rock/Metal) sonuçlarda olmalı", foundAlbum3);
-//    }
-//
-//    /**
-//     * @brief getByGenre metodunu null ve boş string ile test eder
-//     */
-//    @Test
-//    public void testGetByGenreWithNullAndEmpty() {
-//        // Arrange
-//        albumCollection.add(testAlbum);
-//
-//        // Act & Assert
-//        assertTrue("Null ile arama boş liste döndürmeli", albumCollection.getByGenre(null).isEmpty());
-//        assertTrue("Boş string ile arama boş liste döndürmeli", albumCollection.getByGenre("").isEmpty());
-//        assertTrue("Sadece boşluk içeren string ile arama boş liste döndürmeli", albumCollection.getByGenre("  ").isEmpty());
-//    }
-//
-//    /**
-//     * @brief saveToFile ve loadFromFile metodlarını test eder
-//     */
-//    @Test
-//    public void testSaveAndLoadFromFile() {
-//        // Bu metodlar SQLite kullanıldığında sadece true dönüyor
-//
-//        // Act & Assert
-//        assertTrue("saveToFile her zaman true dönmeli", albumCollection.saveToFile("test_file.dat"));
-//        assertTrue("loadFromFile her zaman true dönmeli", albumCollection.loadFromFile("test_file.dat"));
-//    }
-//}
+package com.samet.music.repository;
+
+import com.samet.music.dao.AlbumDAO;
+import com.samet.music.dao.ArtistDAO;
+import com.samet.music.dao.DAOFactory;
+import com.samet.music.model.Album;
+import com.samet.music.model.Artist;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class AlbumCollectionTest {
+
+    private AlbumCollection albumCollection;
+
+    @Mock
+    private AlbumDAO albumDAO;
+    
+    @Mock
+    private ArtistDAO artistDAO;
+    
+    @Mock
+    private DAOFactory daoFactory;
+
+    private Album testAlbum;
+    private Artist testArtist;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        // Setup test data
+        testArtist = new Artist("Test Artist", "Test Biography");
+        testArtist.setId("artist1");
+
+        testAlbum = new Album("Test Album", testArtist, 2023);
+        testAlbum.setId("album1");
+        testAlbum.setGenre("Rock");
+
+        // Mock DAOFactory
+        when(daoFactory.getAlbumDAO()).thenReturn(albumDAO);
+        when(daoFactory.getArtistDAO()).thenReturn(artistDAO);
+        
+        // Reset singleton instance
+        AlbumCollection.resetInstance();
+        
+        // Create new instance with mocked dependencies
+        albumCollection = new AlbumCollection(daoFactory);
+    }
+
+    @Test
+    void getInstance_ShouldReturnSameInstance() {
+        AlbumCollection instance1 = AlbumCollection.getInstance();
+        AlbumCollection instance2 = AlbumCollection.getInstance();
+        
+        assertSame(instance1, instance2, "getInstance should return the same instance");
+    }
+
+    @Test
+    void add_ShouldAddAlbumToCollectionAndDatabase() {
+        // Setup
+        Album album = new Album("Test Album", testArtist, 2023);
+        album.setId("test1");
+        
+        // Mock DAO to return true for successful insert
+        when(albumDAO.insert(album)).thenReturn(true);
+        when(albumDAO.getAll()).thenReturn(Arrays.asList(album));
+        
+        // Execute
+        albumCollection.add(album);
+        
+        // Verify
+        assertTrue(albumCollection.getAll().contains(album));
+        verify(albumDAO, times(1)).insert(album);
+    }
+
+    @Test
+    void add_ShouldNotAddNullAlbum() {
+        albumCollection.add(null);
+        verify(albumDAO, never()).insert(any());
+    }
+
+    @Test
+    void getById_ShouldReturnNullForInvalidId() {
+        Album result = albumCollection.getById("");
+        assertNull(result);
+        
+        result = albumCollection.getById(null);
+        assertNull(result);
+    }
+
+    @Test
+    void getById_ShouldReturnAlbumFromDatabase() {
+        // Setup
+        Album album = new Album("Test Album", testArtist, 2023);
+        album.setId("test1");
+        
+        // Mock DAO to return album
+        when(albumDAO.getById("test1")).thenReturn(album);
+        
+        // Execute
+        Album result = albumCollection.getById("test1");
+        
+        // Verify
+        assertNotNull(result);
+        assertEquals(album, result);
+        verify(albumDAO, times(1)).getById("test1");
+    }
+
+    @Test
+    void searchByName_ShouldReturnMatchingAlbums() {
+        // Setup
+        Album album1 = new Album("Test Album 1", testArtist, 2023);
+        album1.setId("test1");
+        Album album2 = new Album("Different Album", testArtist, 2023);
+        album2.setId("test2");
+        
+        // Mock getAll to return our test albums
+        when(albumDAO.getAll()).thenReturn(Arrays.asList(album1, album2));
+        
+        // Execute
+        List<Album> results = albumCollection.searchByName("Test");
+        
+        // Verify
+        assertEquals(1, results.size());
+        assertTrue(results.contains(album1));
+        assertFalse(results.contains(album2));
+    }
+
+    @Test
+    void getByArtist_ShouldReturnArtistAlbums() {
+        // Setup
+        Album album1 = new Album("Test Album 1", testArtist, 2023);
+        album1.setId("test1");
+        Album album2 = new Album("Test Album 2", testArtist, 2023);
+        album2.setId("test2");
+        
+        // Mock getAll to return our test albums
+        when(albumDAO.getAll()).thenReturn(Arrays.asList(album1, album2));
+        
+        // Execute
+        List<Album> results = albumCollection.getByArtist(testArtist);
+        
+        // Verify
+        assertEquals(2, results.size());
+        assertTrue(results.contains(album1));
+        assertTrue(results.contains(album2));
+    }
+
+    @Test
+    void getByGenre_ShouldReturnGenreAlbums() {
+        // Setup
+        Album album1 = new Album("Rock Album", testArtist, 2023);
+        album1.setGenre("Rock");
+        Album album2 = new Album("Pop Album", testArtist, 2023);
+        album2.setGenre("Pop");
+        
+        // Mock getAll to return our test albums
+        when(albumDAO.getAll()).thenReturn(Arrays.asList(album1, album2));
+        
+        // Execute
+        List<Album> results = albumCollection.getByGenre("Rock");
+        
+        // Verify
+        assertEquals(1, results.size());
+        assertEquals("Rock", results.get(0).getGenre());
+    }
+
+    @Test
+    void deleteWithoutSongs_ShouldRemoveAlbumPreservingSongs() {
+        // Setup
+        Album album = new Album("Test Album", testArtist, 2023);
+        album.setId("test1");
+        
+        // Mock getAll to return our test album
+        when(albumDAO.getAll()).thenReturn(Arrays.asList(album));
+        
+        // Mock deleteWithoutSongs to return true
+        when(albumDAO.deleteWithoutSongs("test1")).thenReturn(true);
+        
+        // Execute
+        boolean result = albumCollection.deleteWithoutSongs("test1");
+        
+        // Verify
+        assertTrue(result);
+        verify(albumDAO, times(1)).deleteWithoutSongs("test1");
+    }
+
+    @Test
+    void remove_ShouldRemoveAlbumCompletely() {
+        // Setup
+        Album album = new Album("Test Album", testArtist, 2023);
+        album.setId("test1");
+        
+        // Mock getAll to return our test album
+        when(albumDAO.getAll()).thenReturn(Arrays.asList(album));
+        
+        // Mock delete to return true
+        when(albumDAO.delete("test1")).thenReturn(true);
+        
+        // Execute
+        boolean result = albumCollection.remove("test1");
+        
+        // Verify
+        assertTrue(result);
+        verify(albumDAO, times(1)).delete("test1");
+    }
+}

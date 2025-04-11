@@ -72,14 +72,9 @@ public class MusicCollectionUI {
         // Get artist selection
         out.print("\nSelect artist (number): ");
         int artistIndex;
-        try {
-            artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (artistIndex < 0 || artistIndex >= artists.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
+        if (artistIndex < 0 || artistIndex >= artists.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -97,19 +92,14 @@ public class MusicCollectionUI {
 
         out.print("Enter song duration (in seconds): ");
         int duration;
-        try {
-            duration = Integer.parseInt(scanner.nextLine().trim());
-            if (duration <= 0) {
-                out.println("Duration must be positive. Operation cancelled.");
-                return;
-            }
-            // Makul bir süre sınırı ekle
-            if (duration > 3600) { // 1 saat sınırı
-                out.println("Duration is too long. Maximum allowed is 3600 seconds (1 hour).");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid duration. Operation cancelled.");
+        duration = Integer.parseInt(scanner.nextLine().trim());
+        if (duration <= 0) {
+            out.println("Duration must be positive. Operation cancelled.");
+            return;
+        }
+        // Makul bir süre sınırı ekle
+        if (duration > 3600) { // 1 saat sınırı
+            out.println("Duration is too long. Maximum allowed is 3600 seconds (1 hour).");
             return;
         }
 
@@ -169,14 +159,9 @@ public class MusicCollectionUI {
         // Get album selection
         out.print("\nSelect album (number): ");
         int albumIndex;
-        try {
-            albumIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (albumIndex < 0 || albumIndex >= albums.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        albumIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
+        if (albumIndex < 0 || albumIndex >= albums.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -192,7 +177,6 @@ public class MusicCollectionUI {
                 .collect(Collectors.toList());
 
         if (availableSongs.isEmpty()) {
-            out.println("No songs available to add to this album.");
             return;
         }
 
@@ -205,14 +189,9 @@ public class MusicCollectionUI {
         // Get song selection
         out.print("\nSelect song (number): ");
         int songIndex;
-        try {
-            songIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (songIndex < 0 || songIndex >= availableSongs.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        songIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
+        if (songIndex < 0 || songIndex >= availableSongs.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -250,14 +229,9 @@ public class MusicCollectionUI {
         // Get artist selection
         out.print("\nSelect artist (number): ");
         int artistIndex;
-        try {
-            artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (artistIndex < 0 || artistIndex >= artists.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
+        if (artistIndex < 0 || artistIndex >= artists.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -275,14 +249,9 @@ public class MusicCollectionUI {
 
         out.print("Enter release year: ");
         int releaseYear;
-        try {
-            releaseYear = Integer.parseInt(scanner.nextLine().trim());
-            if (releaseYear <= 0) {
-                out.println("Release year must be positive. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid release year. Operation cancelled.");
+        releaseYear = Integer.parseInt(scanner.nextLine().trim());
+        if (releaseYear <= 0) {
+            out.println("Release year must be positive. Operation cancelled.");
             return;
         }
 
@@ -348,14 +317,9 @@ public class MusicCollectionUI {
         // Sanatçı seçimini al
         out.print("\nEnter artist number (0 to cancel): ");
         int artistIndex;
-        try {
-            artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (artistIndex < 0 || artistIndex >= artists.size()) {
-                out.println("Invalid selection or cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
+        if (artistIndex < 0 || artistIndex >= artists.size()) {
+            out.println("Invalid selection or cancelled.");
             return;
         }
 
@@ -471,19 +435,13 @@ public class MusicCollectionUI {
         out.println("---------------------------");
 
         for (Artist artist : artists) {
-            try {
-                List<Album> albums = service.getAlbumsByArtist(artist.getId());
-                List<Song> songs = service.getSongsByArtist(artist.getId());
+            List<Album> albums = service.getAlbumsByArtist(artist.getId());
+            List<Song> songs = service.getSongsByArtist(artist.getId());
 
-                out.println(artist.getId() + " | " +
-                        artist.getName() + " | " +
-                        albums.size() + " | " +
-                        songs.size());
-            } catch (Exception e) {
-                out.println(artist.getId() + " | " +
-                        artist.getName() + " | " +
-                        "Error loading albums/songs: " + e.getMessage());
-            }
+            out.println(artist.getId() + " | " +
+                    artist.getName() + " | " +
+                    albums.size() + " | " +
+                    songs.size());
         }
     }
 
@@ -508,19 +466,14 @@ public class MusicCollectionUI {
         // Get user selection
         out.print("\nEnter artist number (or 0 to cancel): ");
         int artistIndex;
-        try {
-            artistIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (artistIndex == 0) {
-                return; // User cancelled
-            }
-            artistIndex--; // Convert to 0-based index
+        artistIndex = Integer.parseInt(scanner.nextLine().trim());
+        if (artistIndex == 0) {
+            return; // User cancelled
+        }
+        artistIndex--; // Convert to 0-based index
 
-            if (artistIndex < 0 || artistIndex >= artists.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (artistIndex < 0 || artistIndex >= artists.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -595,19 +548,14 @@ public class MusicCollectionUI {
         // Get user selection
         out.print("\nEnter song number (or 0 to cancel): ");
         int songIndex;
-        try {
-            songIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (songIndex == 0) {
-                return; // User cancelled
-            }
-            songIndex--; // Convert to 0-based index
+        songIndex = Integer.parseInt(scanner.nextLine().trim());
+        if (songIndex == 0) {
+            return; // User cancelled
+        }
+        songIndex--; // Convert to 0-based index
 
-            if (songIndex < 0 || songIndex >= songs.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (songIndex < 0 || songIndex >= songs.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -731,19 +679,14 @@ public class MusicCollectionUI {
         // Get user selection
         out.print("\nEnter album number (or 0 to cancel): ");
         int albumIndex;
-        try {
-            albumIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (albumIndex == 0) {
-                return; // User cancelled
-            }
-            albumIndex--; // Convert to 0-based index
+        albumIndex = Integer.parseInt(scanner.nextLine().trim());
+        if (albumIndex == 0) {
+            return; // User cancelled
+        }
+        albumIndex--; // Convert to 0-based index
 
-            if (albumIndex < 0 || albumIndex >= albums.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (albumIndex < 0 || albumIndex >= albums.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -760,35 +703,29 @@ public class MusicCollectionUI {
             out.print("\nYour choice: ");
 
             int choice;
-            try {
-                choice = Integer.parseInt(scanner.nextLine().trim());
+            choice = Integer.parseInt(scanner.nextLine().trim());
 
-                if (choice == 3) {
-                    out.println("Operation cancelled.");
-                    return;
-                } else if (choice != 1 && choice != 2) {
-                    out.println("Invalid choice. Operation cancelled.");
-                    return;
-                }
-
-                boolean deleteSongs = (choice == 2);
-
-                // Delete the album
-                boolean success = service.removeAlbum(selectedAlbum.getId(), deleteSongs);
-
-                if (success) {
-                    if (deleteSongs) {
-                        out.println("\nAlbum '" + selectedAlbum.getName() + "' and its songs have been deleted successfully.");
-                    } else {
-                        out.println("\nAlbum '" + selectedAlbum.getName() + "' has been deleted successfully. Songs are kept.");
-                    }
-                } else {
-                    out.println("\nFailed to delete the album. Please try again.");
-                }
-
-            } catch (NumberFormatException e) {
-                out.println("Invalid input. Operation cancelled.");
+            if (choice == 3) {
+                out.println("Operation cancelled.");
                 return;
+            } else if (choice != 1 && choice != 2) {
+                out.println("Invalid choice. Operation cancelled.");
+                return;
+            }
+
+            boolean deleteSongs = (choice == 2);
+
+            // Delete the album
+            boolean success = service.removeAlbum(selectedAlbum.getId(), deleteSongs);
+
+            if (success) {
+                if (deleteSongs) {
+                    out.println("\nAlbum '" + selectedAlbum.getName() + "' and its songs have been deleted successfully.");
+                } else {
+                    out.println("\nAlbum '" + selectedAlbum.getName() + "' has been deleted successfully. Songs are kept.");
+                }
+            } else {
+                out.println("\nFailed to delete the album. Please try again.");
             }
         } else {
             // No songs, just confirm and delete album
@@ -810,7 +747,6 @@ public class MusicCollectionUI {
         }
     }
 
-// MusicCollectionService sınıfına eklenecek metot
     /**
      * Removes an album and optionally its songs
      *

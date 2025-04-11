@@ -16,7 +16,7 @@ import java.util.Map;
 public class ArtistCollection extends MusicCollectionBase<Artist> {
     private static final Logger logger = LoggerFactory.getLogger(ArtistCollection.class);
     private static ArtistCollection instance;
-    private final ArtistDAO artistDAO;
+    private ArtistDAO artistDAO;
 
     private ArtistCollection() {
         artistDAO = DAOFactory.getInstance().getArtistDAO();
@@ -28,6 +28,11 @@ public class ArtistCollection extends MusicCollectionBase<Artist> {
             instance = new ArtistCollection();
         }
         return instance;
+    }
+    
+    // Test için instance'ı sıfırlama metodu
+    protected static void resetInstance() {
+        instance = null;
     }
 
     @Override

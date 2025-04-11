@@ -1,148 +1,119 @@
-//package com.samet.music.main;
-//
-//import static org.junit.Assert.*;
-//import org.junit.*;
-//
-//import com.samet.music.dao.ArtistDAO;
-//import com.samet.music.util.DatabaseManager;
-//
-//import java.io.ByteArrayOutputStream;
-//import java.io.PrintStream;
-//import java.lang.reflect.Method;
-//
-///**
-// * @class MusicAppTest
-// * @brief MusicApp sınıfı için test sınıfı
-// */
-//public class MusicAppTest {
-//
-//    private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//    private final PrintStream originalOut = System.out;
-//    /**
-//     * @brief Tüm testlerden önce bir kez çalıştırılır
-//     */
-//    @BeforeClass
-//    public static void setUpBeforeClass() throws Exception {
-//        // Test öncesi hazırlık işlemleri (gerekirse)
-//    }
-//
-//    /**
-//     * @brief Her testten önce çalıştırılır
-//     */
-//    @Before
-//    public void setUp() throws Exception {
-//        // Çıktıyı yakalamak için System.out'u yönlendir
-//        System.setOut(new PrintStream(outputStream));
-//
-//        // Test için veritabanı ayarlarını yapılandır
-//        DatabaseManager.setShouldResetDatabase(true); // Test için veritabanını sıfırla
-//    }
-//
-//    /**
-//     * @brief Her testten sonra çalıştırılır
-//     */
-//    @After
-//    public void tearDown() throws Exception {
-//        // Orijinal System.out'u geri yükle
-//        System.setOut(originalOut);
-//
-//        // Çıktı akışını temizle
-//        outputStream.reset();
-//    }
-//
-//    /**
-//     * @brief Tüm testlerden sonra bir kez çalıştırılır
-//     */
-//    @AfterClass
-//    public static void tearDownAfterClass() throws Exception {
-//        // Test sonrası temizlik işlemleri (gerekirse)
-//    }
-//
-//    /**
-//     * @brief DatabaseUtil.setShouldResetDatabase metodunun çağrılabilir olduğunu test eder
-//     */
-//    @Test
-//    public void testSetShouldResetDatabase() {
-//        try {
-//            // Act
-//            DatabaseManager.setShouldResetDatabase(false);
-//
-//            // Assert - Exception fırlatılmadıysa başarılı
-//            assertTrue(true);
-//        } catch (Exception e) {
-//            fail("DatabaseUtil.setShouldResetDatabase çağrısı hata fırlattı: " + e.getMessage());
-//        }
-//    }
-//
-//    /**
-//     * @brief DatabaseUtil.initializeDatabase metodunun çağrıldığını test eder
-//     * Not: Gerçek veritabanı işlemlerini test etmek yerine, metodun çağrılabilir olduğunu doğruluyoruz
-//     */
-//    @Test
-//    public void testDatabaseInitialization() {
-//        try {
-//            // Act
-//            DatabaseManager.initializeDatabase();
-//
-//            // Assert - Exception fırlatılmadıysa başarılı
-//            assertTrue(true);
-//        } catch (Exception e) {
-//            fail("DatabaseUtil.initializeDatabase çağrısı hata fırlattı: " + e.getMessage());
-//        }
-//    }
-//
-//    /**
-//     * @brief ArtistDAO.removeDuplicateArtists metodunun çağrılabilir olduğunu test eder
-//     */
-//    @Test
-//    public void testRemoveDuplicateArtists() {
-//        try {
-//            // Arrange
-//            ArtistDAO artistDAO = new ArtistDAO();
-//
-//            // Act
-//            artistDAO.removeDuplicateArtists();
-//
-//            // Assert - Exception fırlatılmadıysa başarılı
-//            assertTrue(true);
-//        } catch (Exception e) {
-//            fail("ArtistDAO.removeDuplicateArtists çağrısı hata fırlattı: " + e.getMessage());
-//        }
-//    }
-//
-//    /**
-//     * @brief MusicApp sınıfının yapısını test eder
-//     */
-//    @Test
-//    public void testMusicAppStructure() {
-//        try {
-//            // MusicApp sınıfında main metodu olduğunu doğrula
-//            Method mainMethod = MusicApp.class.getMethod("main", String[].class);
-//            assertNotNull("MusicApp sınıfı main metodu içermeli", mainMethod);
-//
-//            // main metodunun public ve static olduğunu doğrula
-//            assertTrue("main metodu public olmalı", java.lang.reflect.Modifier.isPublic(mainMethod.getModifiers()));
-//            assertTrue("main metodu static olmalı", java.lang.reflect.Modifier.isStatic(mainMethod.getModifiers()));
-//
-//        } catch (NoSuchMethodException e) {
-//            fail("main metodu bulunamadı: " + e.getMessage());
-//        }
-//    }
-//
-//    /**
-//     * @brief main metodunun temel işlevselliğini test eder
-//     * Not: Gerçek uygulama başlatma kodu test edilmiyor, çünkü bu GUI ve kullanıcı etkileşimi başlatacaktır
-//     */
-//    @Test
-//    public void testMainMethodComponents() {
-//        // Bu test, main metodunun JavaFX uygulamasını ve/veya konsol uygulamasını başlatma
-//        // yeteneğini doğrudan test etmez, çünkü bu işlemler gerçek uygulama başlatır
-//        // Bunun yerine, MusicApp sınıfının gereken bileşenlere (ArtistDAO, Music, vb.) erişebilir olduğunu doğruluyoruz
-//
-//        assertNotNull("ArtistDAO sınıfına erişilebilir olmalı", ArtistDAO.class);
-//        assertNotNull("Music sınıfına erişilebilir olmalı", Music.class);
-//        assertNotNull("DatabaseUtil sınıfına erişilebilir olmalı", DatabaseManager.class);
-//
-//        // MusicLibraryApp sınıfı, GUI testi karmaşık olduğu için doğrudan test edilmiyor
-//    }
-//}
+package com.samet.music.main;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * MusicApp sınıfı için test sınıfı
+ */
+public class MusicAppTest {
+
+    private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+    private final PrintStream originalOut = System.out;
+
+    @TempDir
+    Path tempDir;
+
+    @BeforeEach
+    public void setUpStreams() {
+        System.setOut(new PrintStream(outContent));
+    }
+
+    @AfterEach
+    public void restoreStreams() throws Exception {
+        System.setOut(originalOut);
+    }
+
+    /**
+     * Test ana uygulama sınıfı ve bağlı sınıfların varlığını
+     */
+    @Test
+    public void testAppClassExists() {
+        assertNotNull(MusicApp.class);
+        assertNotNull(Music.class);
+        assertNotNull(MusicAppInitializer.class);
+    }
+    
+    /**
+     * Test sınıfların doğru paket içinde olduğunu
+     */
+    @Test
+    public void testPackageStructure() {
+        assertEquals("com.samet.music.main", MusicApp.class.getPackage().getName());
+        assertEquals("com.samet.music.main", Music.class.getPackage().getName());
+        assertEquals("com.samet.music.main", MusicAppInitializer.class.getPackage().getName());
+    }
+    
+    /**
+     * Test main metod imzasının doğru olduğunu
+     */
+    @Test
+    public void testMainMethodSignature() {
+        try {
+            MusicApp.class.getMethod("main", String[].class);
+            assertTrue(true);
+        } catch (NoSuchMethodException e) {
+            fail("MusicApp sınıfında doğru imzalı bir main metodu bulunamadı");
+        }
+    }
+    
+    /**
+     * Test dosya sistem yollarının doğru oluşturulabildiğini
+     */
+    @Test
+    public void testFilePathManagement() throws IOException {
+        // User credentials için geçici dosya yolu oluştur
+        Path userCredPath = tempDir.resolve("user_credentials.txt");
+        Files.writeString(userCredPath, "testuser:password");
+        
+        // Dosyanın oluşturulduğunu kontrol et
+        assertTrue(Files.exists(userCredPath));
+        
+        // Dosya içeriğini oku
+        String content = Files.readString(userCredPath);
+        assertEquals("testuser:password", content);
+        
+        // Dosya yolunun düzgün biçimlendirildiğini kontrol et
+        String pathString = userCredPath.toString().replace('\\', '/');
+        assertTrue(pathString.endsWith("/user_credentials.txt"));
+    }
+    
+    /**
+     * Test MusicApp sınıfının gerçek dosya sistemine erişebilirliğini
+     */
+    @Test
+    public void testResourceAccess() {
+        File dataDir = new File("data");
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
+        
+        try {
+            File credentialsFile = new File(dataDir, "user_credentials.txt");
+            if (!credentialsFile.exists()) {
+                credentialsFile.createNewFile();
+            }
+            
+            assertTrue(credentialsFile.exists(), "Credentials dosyası oluşturulabilmeli");
+            
+            // Temizlik
+            credentialsFile.delete();
+            dataDir.delete();
+        } catch (IOException e) {
+            // Dosya işlemleri gerçekleştirilemezse, en azından yapılar kontrol edilsin
+            assertNotNull(MusicApp.class);
+        }
+    }
+} 

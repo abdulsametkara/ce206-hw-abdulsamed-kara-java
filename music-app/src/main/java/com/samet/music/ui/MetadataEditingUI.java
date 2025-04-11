@@ -49,20 +49,14 @@ public class MetadataEditingUI {
 
         // Get user selection
         out.print("\nEnter artist number (or 0 to cancel): ");
-        int artistIndex;
-        try {
-            artistIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (artistIndex == 0) {
-                return; // User cancelled
-            }
-            artistIndex--; // Convert to 0-based index
+        int artistIndex = Integer.parseInt(scanner.nextLine().trim());
+        if (artistIndex == 0) {
+            return; // User cancelled
+        }
+        artistIndex--; // Convert to 0-based index
 
-            if (artistIndex < 0 || artistIndex >= artists.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (artistIndex < 0 || artistIndex >= artists.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -75,13 +69,7 @@ public class MetadataEditingUI {
         out.println("0. Cancel");
         out.print("Your choice: ");
 
-        int choice;
-        try {
-            choice = Integer.parseInt(scanner.nextLine().trim());
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
-            return;
-        }
+        int choice = Integer.parseInt(scanner.nextLine().trim());
 
         switch (choice) {
             case 0:
@@ -168,20 +156,14 @@ public class MetadataEditingUI {
 
         // Get user selection
         out.print("\nEnter album number (or 0 to cancel): ");
-        int albumIndex;
-        try {
-            albumIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (albumIndex == 0) {
-                return; // User cancelled
-            }
-            albumIndex--; // Convert to 0-based index
+        int albumIndex = Integer.parseInt(scanner.nextLine().trim());
+        if (albumIndex == 0) {
+            return; // User cancelled
+        }
+        albumIndex--; // Convert to 0-based index
 
-            if (albumIndex < 0 || albumIndex >= albums.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (albumIndex < 0 || albumIndex >= albums.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
@@ -196,13 +178,7 @@ public class MetadataEditingUI {
         out.println("0. Cancel");
         out.print("Your choice: ");
 
-        int choice;
-        try {
-            choice = Integer.parseInt(scanner.nextLine().trim());
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
-            return;
-        }
+        int choice = Integer.parseInt(scanner.nextLine().trim());
 
         switch (choice) {
             case 0:
@@ -249,18 +225,14 @@ public class MetadataEditingUI {
         out.println("\nCurrent release year: " + album.getReleaseYear());
         out.print("Enter new release year: ");
 
-        try {
-            int newYear = Integer.parseInt(scanner.nextLine().trim());
-            if (newYear <= 0) {
-                out.println("Release year must be a positive number. Operation cancelled.");
-                return;
-            }
-
-            album.setReleaseYear(newYear);
-            out.println("Album release year updated successfully to " + newYear + ".");
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Please enter a valid number. Operation cancelled.");
+        int newYear = Integer.parseInt(scanner.nextLine().trim());
+        if (newYear <= 0) {
+            out.println("Release year must be a positive number. Operation cancelled.");
+            return;
         }
+
+        album.setReleaseYear(newYear);
+        out.println("Album release year updated successfully to " + newYear + ".");
     }
 
     /**
@@ -297,20 +269,14 @@ public class MetadataEditingUI {
         }
 
         out.print("\nEnter artist number (or 0 to cancel): ");
-        int artistIndex;
-        try {
-            artistIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (artistIndex == 0) {
-                return; // User cancelled
-            }
-            artistIndex--; // Convert to 0-based index
+        int artistIndex = Integer.parseInt(scanner.nextLine().trim());
+        if (artistIndex == 0) {
+            return; // User cancelled
+        }
+        artistIndex--; // Convert to 0-based index
 
-            if (artistIndex < 0 || artistIndex >= artists.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (artistIndex < 0 || artistIndex >= artists.size()) {
+            out.println("Invalid selection. Operation cancelled.");
             return;
         }
 
