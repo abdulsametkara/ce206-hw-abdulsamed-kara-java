@@ -95,25 +95,21 @@ public class MusicCollectionService {
      */
     public boolean addArtist(String name, String biography) {
         Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("add_artist");
-        try {
-            if (name == null || name.trim().isEmpty()) {
-                logger.warn("Invalid artist data: name is empty or null");
-                return false;
-            }
-
-            logger.info("Adding artist: {}", name);
-            Artist artist = musicFactory.createArtist(name, biography);
-            artistCollection.add(artist);
-
-            // Increment metric
-            MetricsCollector.getInstance().incrementArtistAdded();
-            return true;
-        } catch (Exception e) {
-            logger.error("Error adding artist: {}", e.getMessage(), e);
-            return false;
-        } finally {
+        
+        if (name == null || name.trim().isEmpty()) {
+            logger.warn("Invalid artist data: name is empty or null");
             timer.observeDuration();
+            return false;
         }
+
+        logger.info("Adding artist: {}", name);
+        Artist artist = musicFactory.createArtist(name, biography);
+        artistCollection.add(artist);
+
+        // Increment metric
+        MetricsCollector.getInstance().incrementArtistAdded();
+        timer.observeDuration();
+        return true;
     }
 
     /**
@@ -122,13 +118,8 @@ public class MusicCollectionService {
      * @return Artist or null
      */
     public Artist getArtistById(String id) {
-        try {
-            logger.debug("Getting artist by ID: {}", id);
-            return artistCollection.getById(id);
-        } catch (Exception e) {
-            logger.error("Error getting artist by ID: {}", e.getMessage(), e);
-            return null;
-        }
+        logger.debug("Getting artist by ID: {}", id);
+        return artistCollection.getById(id);
     }
 
     /**
@@ -137,13 +128,8 @@ public class MusicCollectionService {
      * @return List of matching artists
      */
     public List<Artist> searchArtistsByName(String name) {
-        try {
-            logger.debug("Searching artists by name: {}", name);
-            return artistCollection.searchByName(name);
-        } catch (Exception e) {
-            logger.error("Error searching artists by name: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Searching artists by name: {}", name);
+        return artistCollection.searchByName(name);
     }
 
     /**
@@ -151,23 +137,18 @@ public class MusicCollectionService {
      * @return List of artists
      */
     public List<Artist> getAllArtists() {
-        try {
-            logger.debug("Getting all artists");
-            List<Artist> allArtists = artistCollection.getAll();
+        logger.debug("Getting all artists");
+        List<Artist> allArtists = artistCollection.getAll();
 
-            // Filter unique artists
-            Map<String, Artist> uniqueArtistsById = new HashMap<>();
-            for (Artist artist : allArtists) {
-                uniqueArtistsById.put(artist.getId(), artist);
-            }
-
-            List<Artist> uniqueArtists = new ArrayList<>(uniqueArtistsById.values());
-            logger.info("Returning {} unique artists", uniqueArtists.size());
-            return uniqueArtists;
-        } catch (Exception e) {
-            logger.error("Error getting all artists: {}", e.getMessage(), e);
-            return Collections.emptyList();
+        // Filter unique artists
+        Map<String, Artist> uniqueArtistsById = new HashMap<>();
+        for (Artist artist : allArtists) {
+            uniqueArtistsById.put(artist.getId(), artist);
         }
+
+        List<Artist> uniqueArtists = new ArrayList<>(uniqueArtistsById.values());
+        logger.info("Returning {} unique artists", uniqueArtists.size());
+        return uniqueArtists;
     }
 
     /**
@@ -177,37 +158,34 @@ public class MusicCollectionService {
      */
     public boolean removeArtist(String artistId) {
         Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("remove_artist");
-        try {
-            if (artistId == null || artistId.trim().isEmpty()) {
-                logger.warn("Invalid artist ID for removal");
-                return false;
-            }
-
-            logger.info("Removing artist with ID: {}", artistId);
-
-            // Validate artist
-            Artist artist = artistCollection.getById(artistId);
-            if (artist == null) {
-                logger.warn("Artist with ID {} not found", artistId);
-                return false;
-            }
-
-            // Delete in transaction
-            boolean success = artistDAO.delete(artistId);
-
-            if (success) {
-                // If successful, also remove from collection
-                artistCollection.remove(artistId);
-                logger.info("Successfully removed artist: {}", artist.getName());
-            }
-
-            return success;
-        } catch (Exception e) {
-            logger.error("Error removing artist: {}", e.getMessage(), e);
-            return false;
-        } finally {
+        
+        if (artistId == null || artistId.trim().isEmpty()) {
+            logger.warn("Invalid artist ID for removal");
             timer.observeDuration();
+            return false;
         }
+
+        logger.info("Removing artist with ID: {}", artistId);
+
+        // Validate artist
+        Artist artist = artistCollection.getById(artistId);
+        if (artist == null) {
+            logger.warn("Artist with ID {} not found", artistId);
+            timer.observeDuration();
+            return false;
+        }
+
+        // Delete in transaction
+        boolean success = artistDAO.delete(artistId);
+
+        if (success) {
+            // If successful, also remove from collection
+            artistCollection.remove(artistId);
+            logger.info("Successfully removed artist: {}", artist.getName());
+        }
+
+        timer.observeDuration();
+        return success;
     }
 
     // === ALBUM OPERATIONS ===
@@ -222,33 +200,30 @@ public class MusicCollectionService {
      */
     public boolean addAlbum(String name, String artistId, int releaseYear, String genre) {
         Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("add_album");
-        try {
-            if (name == null || name.trim().isEmpty() || releaseYear <= 0) {
-                logger.warn("Invalid album data: name={}, releaseYear={}", name, releaseYear);
-                return false;
-            }
-
-            Artist artist = artistCollection.getById(artistId);
-            if (artist == null) {
-                logger.warn("Artist with ID {} not found for album creation", artistId);
-                return false;
-            }
-
-            logger.info("Adding album: {}, Artist ID: {}, Release Year: {}, Genre: {}",
-                    name, artist.getId(), releaseYear, genre);
-
-            Album album = musicFactory.createAlbum(name, artist, releaseYear, genre);
-            albumCollection.add(album);
-
-            // Increment metric
-            MetricsCollector.getInstance().incrementAlbumAdded();
-            return true;
-        } catch (Exception e) {
-            logger.error("Error adding album: {}", e.getMessage(), e);
-            return false;
-        } finally {
+        
+        if (name == null || name.trim().isEmpty() || releaseYear <= 0) {
+            logger.warn("Invalid album data: name={}, releaseYear={}", name, releaseYear);
             timer.observeDuration();
+            return false;
         }
+
+        Artist artist = artistCollection.getById(artistId);
+        if (artist == null) {
+            logger.warn("Artist with ID {} not found for album creation", artistId);
+            timer.observeDuration();
+            return false;
+        }
+
+        logger.info("Adding album: {}, Artist ID: {}, Release Year: {}, Genre: {}",
+                name, artist.getId(), releaseYear, genre);
+
+        Album album = musicFactory.createAlbum(name, artist, releaseYear, genre);
+        albumCollection.add(album);
+
+        // Increment metric
+        MetricsCollector.getInstance().incrementAlbumAdded();
+        timer.observeDuration();
+        return true;
     }
 
     /**
@@ -256,13 +231,8 @@ public class MusicCollectionService {
      * @return List of albums
      */
     public List<Album> getAllAlbums() {
-        try {
-            logger.debug("Getting all albums");
-            return albumCollection.getAll();
-        } catch (Exception e) {
-            logger.error("Error getting all albums: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Getting all albums");
+        return albumCollection.getAll();
     }
 
     /**
@@ -271,13 +241,8 @@ public class MusicCollectionService {
      * @return Album or null
      */
     public Album getAlbumById(String id) {
-        try {
-            logger.debug("Getting album by ID: {}", id);
-            return albumCollection.getById(id);
-        } catch (Exception e) {
-            logger.error("Error getting album by ID: {}", e.getMessage(), e);
-            return null;
-        }
+        logger.debug("Getting album by ID: {}", id);
+        return albumCollection.getById(id);
     }
 
     /**
@@ -286,13 +251,8 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean removeAlbum(String id) {
-        try {
-            logger.info("Removing album with ID: {}", id);
-            return albumCollection.remove(id);
-        } catch (Exception e) {
-            logger.error("Error removing album: {}", e.getMessage(), e);
-            return false;
-        }
+        logger.info("Removing album with ID: {}", id);
+        return albumCollection.remove(id);
     }
 
     /**
@@ -303,43 +263,40 @@ public class MusicCollectionService {
      */
     public boolean removeAlbum(String albumId, boolean deleteSongs) {
         Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("remove_album");
-        try {
-            if (albumId == null || albumId.trim().isEmpty()) {
-                logger.warn("Invalid album ID for removal");
-                return false;
-            }
-
-            logger.info("Removing album with ID: {}, deleteSongs={}", albumId, deleteSongs);
-
-            // Validate album
-            Album album = albumCollection.getById(albumId);
-            if (album == null) {
-                logger.warn("Album with ID {} not found", albumId);
-                return false;
-            }
-
-            boolean success;
-            if (deleteSongs) {
-                // Delete album and its songs
-                success = albumDAO.delete(albumId);
-            } else {
-                // Delete album but keep songs
-                success = albumDAO.deleteWithoutSongs(albumId);
-            }
-
-            if (success) {
-                // Also remove from collection
-                albumCollection.remove(albumId);
-                logger.info("Successfully removed album: {}", album.getName());
-            }
-
-            return success;
-        } catch (Exception e) {
-            logger.error("Error removing album: {}", e.getMessage(), e);
-            return false;
-        } finally {
+        
+        if (albumId == null || albumId.trim().isEmpty()) {
+            logger.warn("Invalid album ID for removal");
             timer.observeDuration();
+            return false;
         }
+
+        logger.info("Removing album with ID: {}, deleteSongs={}", albumId, deleteSongs);
+
+        // Validate album
+        Album album = albumCollection.getById(albumId);
+        if (album == null) {
+            logger.warn("Album with ID {} not found", albumId);
+            timer.observeDuration();
+            return false;
+        }
+
+        boolean success;
+        if (deleteSongs) {
+            // Delete album and its songs
+            success = albumDAO.delete(albumId);
+        } else {
+            // Delete album but keep songs
+            success = albumDAO.deleteWithoutSongs(albumId);
+        }
+
+        if (success) {
+            // Also remove from collection
+            albumCollection.remove(albumId);
+            logger.info("Successfully removed album: {}", album.getName());
+        }
+
+        timer.observeDuration();
+        return success;
     }
 
     /**
@@ -348,13 +305,8 @@ public class MusicCollectionService {
      * @return List of matching albums
      */
     public List<Album> searchAlbumsByName(String name) {
-        try {
-            logger.debug("Searching albums by name: {}", name);
-            return albumCollection.searchByName(name);
-        } catch (Exception e) {
-            logger.error("Error searching albums by name: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Searching albums by name: {}", name);
+        return albumCollection.searchByName(name);
     }
 
     /**
@@ -363,18 +315,13 @@ public class MusicCollectionService {
      * @return List of albums
      */
     public List<Album> getAlbumsByArtist(String artistId) {
-        try {
-            logger.debug("Getting albums by artist ID: {}", artistId);
-            Artist artist = artistCollection.getById(artistId);
-            if (artist == null) {
-                logger.warn("Artist with ID {} not found", artistId);
-                return Collections.emptyList();
-            }
-            return albumCollection.getByArtist(artist);
-        } catch (Exception e) {
-            logger.error("Error getting albums by artist: {}", e.getMessage(), e);
+        logger.debug("Getting albums by artist ID: {}", artistId);
+        Artist artist = artistCollection.getById(artistId);
+        if (artist == null) {
+            logger.warn("Artist with ID {} not found", artistId);
             return Collections.emptyList();
         }
+        return albumCollection.getByArtist(artist);
     }
 
     /**
@@ -383,13 +330,8 @@ public class MusicCollectionService {
      * @return List of albums
      */
     public List<Album> getAlbumsByGenre(String genre) {
-        try {
-            logger.debug("Getting albums by genre: {}", genre);
-            return albumCollection.getByGenre(genre);
-        } catch (Exception e) {
-            logger.error("Error getting albums by genre: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Getting albums by genre: {}", genre);
+        return albumCollection.getByGenre(genre);
     }
 
     // === SONG OPERATIONS ===
@@ -404,34 +346,36 @@ public class MusicCollectionService {
      */
     public boolean addSong(String name, String artistId, int duration, String genre) {
         Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("add_song");
-        try {
-            if (name == null || name.trim().isEmpty() || duration <= 0) {
-                logger.warn("Invalid song data: name={}, duration={}", name, duration);
-                return false;
-            }
-
-            // Get artist from collection
-            Artist artist = artistCollection.getById(artistId);
-            if (artist == null) {
-                logger.warn("Artist with ID {} not found", artistId);
-                return false;
-            }
-
-            logger.info("Creating song with name: {}, artist: {}, duration: {}, genre: {}",
-                    name, artist.getName(), duration, genre);
-
-            Song song = musicFactory.createSong(name, artist, duration, genre);
-            songCollection.add(song);
-
-            // Increment metric
-            MetricsCollector.getInstance().incrementSongAdded();
-            return true;
-        } catch (Exception e) {
-            logger.error("Error adding song: {}", e.getMessage(), e);
-            return false;
-        } finally {
+        
+        if (name == null || name.trim().isEmpty()) {
+            logger.warn("Invalid song data: name={}, duration={}", name, duration);
             timer.observeDuration();
+            return false;
         }
+
+        if (duration <= 0) {
+            logger.warn("Invalid song data: name={}, duration={}", name, duration);
+            timer.observeDuration();
+            return false;
+        }
+
+        Artist artist = artistCollection.getById(artistId);
+        if (artist == null) {
+            logger.warn("Artist with ID {} not found for song creation", artistId);
+            timer.observeDuration();
+            return false;
+        }
+
+        logger.info("Creating song with name: {}, artist: {}, duration: {}, genre: {}",
+                name, artist.getName(), duration, genre);
+
+        Song song = musicFactory.createSong(name, artist, duration, genre);
+        songCollection.add(song);
+
+        // Increment metric
+        MetricsCollector.getInstance().incrementSongAdded();
+        timer.observeDuration();
+        return true;
     }
 
     /**
@@ -441,34 +385,29 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean addSongToAlbum(String songId, String albumId) {
-        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("add_song_to_album");
-        try {
-            Song song = songCollection.getById(songId);
-            Album album = albumCollection.getById(albumId);
-
-            if (song == null || album == null) {
-                logger.warn("Cannot add song to album: song={}, album={}",
-                        (song == null ? "null" : song.getId()),
-                        (album == null ? "null" : album.getId()));
-                return false;
-            }
-
-            // Set album reference
-            song.setAlbum(album);
-
-            // Update in database
-            boolean updated = songDAO.update(song);
-            if (updated) {
-                logger.info("Added song {} to album {}", song.getName(), album.getName());
-            }
-
-            return updated;
-        } catch (Exception e) {
-            logger.error("Error adding song to album: {}", e.getMessage(), e);
+        if (songId == null || albumId == null) {
+            logger.warn("Cannot add song to album: song={}, album={}", songId, albumId);
             return false;
-        } finally {
-            timer.observeDuration();
         }
+
+        Song song = songCollection.getById(songId);
+        Album album = albumCollection.getById(albumId);
+
+        if (song == null || album == null) {
+            logger.warn("Cannot add song to album: song={}, album={}",
+                    (song == null ? "null" : song.getId()),
+                    (album == null ? "null" : album.getId()));
+            return false;
+        }
+
+        song.setAlbum(album);
+        boolean success = songDAO.update(song);
+
+        if (success) {
+            logger.info("Added song {} to album {}", song.getName(), album.getName());
+        }
+
+        return success;
     }
 
     /**
@@ -476,13 +415,8 @@ public class MusicCollectionService {
      * @return List of songs
      */
     public List<Song> getAllSongs() {
-        try {
-            logger.debug("Getting all songs");
-            return songCollection.getAll();
-        } catch (Exception e) {
-            logger.error("Error getting all songs: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Getting all songs");
+        return songCollection.getAll();
     }
 
     /**
@@ -491,13 +425,8 @@ public class MusicCollectionService {
      * @return Song or null
      */
     public Song getSongById(String id) {
-        try {
-            logger.debug("Getting song by ID: {}", id);
-            return songCollection.getById(id);
-        } catch (Exception e) {
-            logger.error("Error getting song by ID: {}", e.getMessage(), e);
-            return null;
-        }
+        logger.debug("Getting song by ID: {}", id);
+        return songCollection.getById(id);
     }
 
     /**
@@ -506,38 +435,30 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean removeSong(String songId) {
-        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("remove_song");
-        try {
-            if (songId == null || songId.trim().isEmpty()) {
-                logger.warn("Invalid song ID for removal");
-                return false;
-            }
-
-            logger.info("Removing song with ID: {}", songId);
-
-            // Validate song
-            Song song = songCollection.getById(songId);
-            if (song == null) {
-                logger.warn("Song with ID {} not found", songId);
-                return false;
-            }
-
-            // Delete from database
-            boolean success = songDAO.delete(songId);
-
-            if (success) {
-                // Also remove from collection
-                songCollection.remove(songId);
-                logger.info("Successfully removed song: {}", song.getName());
-            }
-
-            return success;
-        } catch (Exception e) {
-            logger.error("Error removing song: {}", e.getMessage(), e);
+        if (songId == null || songId.trim().isEmpty()) {
+            logger.warn("Invalid song ID for removal");
             return false;
-        } finally {
-            timer.observeDuration();
         }
+
+        logger.info("Removing song with ID: {}", songId);
+
+        // Validate song
+        Song song = songCollection.getById(songId);
+        if (song == null) {
+            logger.warn("Song with ID {} not found", songId);
+            return false;
+        }
+
+        // Remove from DAO
+        boolean success = songDAO.delete(songId);
+
+        if (success) {
+            // If successful, also remove from collection
+            songCollection.remove(songId);
+            logger.info("Successfully removed song: {}", song.getName());
+        }
+
+        return success;
     }
 
     /**
@@ -546,13 +467,8 @@ public class MusicCollectionService {
      * @return List of matching songs
      */
     public List<Song> searchSongsByName(String name) {
-        try {
-            logger.debug("Searching songs by name: {}", name);
-            return songCollection.searchByName(name);
-        } catch (Exception e) {
-            logger.error("Error searching songs by name: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Searching songs by name: {}", name);
+        return songCollection.searchByName(name);
     }
 
     /**
@@ -561,18 +477,13 @@ public class MusicCollectionService {
      * @return List of songs
      */
     public List<Song> getSongsByArtist(String artistId) {
-        try {
-            logger.debug("Getting songs by artist ID: {}", artistId);
-            Artist artist = artistCollection.getById(artistId);
-            if (artist == null) {
-                logger.warn("Artist with ID {} not found", artistId);
-                return Collections.emptyList();
-            }
-            return songCollection.getByArtist(artist);
-        } catch (Exception e) {
-            logger.error("Error getting songs by artist: {}", e.getMessage(), e);
+        logger.debug("Getting songs by artist ID: {}", artistId);
+        Artist artist = artistCollection.getById(artistId);
+        if (artist == null) {
+            logger.warn("Artist with ID {} not found", artistId);
             return Collections.emptyList();
         }
+        return songCollection.getByArtist(artist);
     }
 
     /**
@@ -581,18 +492,13 @@ public class MusicCollectionService {
      * @return List of songs
      */
     public List<Song> getSongsByAlbum(String albumId) {
-        try {
-            logger.debug("Getting songs by album ID: {}", albumId);
-            Album album = albumCollection.getById(albumId);
-            if (album == null) {
-                logger.warn("Album with ID {} not found", albumId);
-                return Collections.emptyList();
-            }
-            return songCollection.getByAlbum(album);
-        } catch (Exception e) {
-            logger.error("Error getting songs by album: {}", e.getMessage(), e);
+        logger.debug("Getting songs by album ID: {}", albumId);
+        Album album = albumCollection.getById(albumId);
+        if (album == null) {
+            logger.warn("Album with ID {} not found", albumId);
             return Collections.emptyList();
         }
+        return songCollection.getByAlbum(album);
     }
 
     /**
@@ -601,13 +507,8 @@ public class MusicCollectionService {
      * @return List of songs
      */
     public List<Song> getSongsByGenre(String genre) {
-        try {
-            logger.debug("Getting songs by genre: {}", genre);
-            return songCollection.getByGenre(genre);
-        } catch (Exception e) {
-            logger.error("Error getting songs by genre: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Getting songs by genre: {}", genre);
+        return songCollection.getByGenre(genre);
     }
 
     // === PLAYLIST OPERATIONS ===
@@ -620,26 +521,23 @@ public class MusicCollectionService {
      */
     public boolean createPlaylist(String name, String description) {
         Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("create_playlist");
-        try {
-            if (name == null || name.trim().isEmpty()) {
-                logger.warn("Invalid playlist data: name is empty or null");
-                return false;
-            }
-
-            Playlist playlist = new Playlist(name, description);
-            playlistCollection.add(playlist);
-
-            logger.info("Created new playlist: {} with ID: {}", name, playlist.getId());
-
-            // Increment metric
-            MetricsCollector.getInstance().incrementPlaylistAdded();
-            return true;
-        } catch (Exception e) {
-            logger.error("Error creating playlist: {}", e.getMessage(), e);
-            return false;
-        } finally {
+        
+        if (name == null || name.trim().isEmpty()) {
+            logger.warn("Invalid playlist data: name is empty or null");
             timer.observeDuration();
+            return false;
         }
+
+        // Create a new playlist
+        Playlist playlist = new Playlist(name, description);
+        playlistCollection.add(playlist);
+
+        logger.info("Created new playlist: {} with ID: {}", name, playlist.getId());
+
+        // Increment metric
+        MetricsCollector.getInstance().incrementPlaylistAdded();
+        timer.observeDuration();
+        return true;
     }
 
     /**
@@ -647,13 +545,8 @@ public class MusicCollectionService {
      * @return List of playlists
      */
     public List<Playlist> getAllPlaylists() {
-        try {
-            logger.debug("Getting all playlists");
-            return playlistCollection.getAll();
-        } catch (Exception e) {
-            logger.error("Error getting all playlists: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Getting all playlists");
+        return playlistCollection.getAll();
     }
 
     /**
@@ -662,13 +555,8 @@ public class MusicCollectionService {
      * @return Playlist or null
      */
     public Playlist getPlaylistById(String id) {
-        try {
-            logger.debug("Getting playlist by ID: {}", id);
-            return playlistCollection.getById(id);
-        } catch (Exception e) {
-            logger.error("Error getting playlist by ID: {}", e.getMessage(), e);
-            return null;
-        }
+        logger.debug("Getting playlist by ID: {}", id);
+        return playlistCollection.getById(id);
     }
 
     /**
@@ -677,27 +565,30 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean removePlaylist(String id) {
-        try {
-            if (id == null || id.trim().isEmpty()) {
-                logger.warn("Invalid playlist ID for removal");
-                return false;
-            }
-
-            logger.info("Removing playlist with ID: {}", id);
-
-            // Validate playlist
-            Playlist playlist = playlistCollection.getById(id);
-            if (playlist == null) {
-                logger.warn("Playlist with ID {} not found", id);
-                return false;
-            }
-
-            // Delete playlist
-            return playlistCollection.remove(id);
-        } catch (Exception e) {
-            logger.error("Error removing playlist: {}", e.getMessage(), e);
+        if (id == null || id.trim().isEmpty()) {
+            logger.warn("Invalid playlist ID for removal");
             return false;
         }
+
+        logger.info("Removing playlist with ID: {}", id);
+
+        // Validate playlist
+        Playlist playlist = playlistCollection.getById(id);
+        if (playlist == null) {
+            logger.warn("Playlist with ID {} not found", id);
+            return false;
+        }
+
+        // Remove from DAO
+        boolean success = playlistDAO.delete(id);
+
+        if (success) {
+            // If successful, also remove from collection
+            playlistCollection.remove(id);
+            logger.info("Successfully removed playlist: {}", playlist.getName());
+        }
+
+        return success;
     }
 
     /**
@@ -706,13 +597,8 @@ public class MusicCollectionService {
      * @return List of matching playlists
      */
     public List<Playlist> searchPlaylistsByName(String name) {
-        try {
-            logger.debug("Searching playlists by name: {}", name);
-            return playlistCollection.searchByName(name);
-        } catch (Exception e) {
-            logger.error("Error searching playlists by name: {}", e.getMessage(), e);
-            return Collections.emptyList();
-        }
+        logger.debug("Searching playlists by name: {}", name);
+        return playlistCollection.searchByName(name);
     }
 
     /**
@@ -721,24 +607,19 @@ public class MusicCollectionService {
      * @return List of playlists
      */
     public List<Playlist> getPlaylistsContainingSong(String songId) {
-        try {
-            if (songId == null || songId.trim().isEmpty()) {
-                logger.warn("Invalid song ID for getPlaylistsContainingSong");
-                return Collections.emptyList();
-            }
-
-            logger.debug("Getting playlists containing song: {}", songId);
-            Song song = songCollection.getById(songId);
-            if (song == null) {
-                logger.warn("Song with ID {} not found", songId);
-                return Collections.emptyList();
-            }
-
-            return playlistCollection.getPlaylistsContainingSong(song);
-        } catch (Exception e) {
-            logger.error("Error getting playlists containing song: {}", e.getMessage(), e);
+        if (songId == null || songId.trim().isEmpty()) {
+            logger.warn("Invalid song ID for getPlaylistsContainingSong");
             return Collections.emptyList();
         }
+
+        logger.debug("Getting playlists containing song: {}", songId);
+        Song song = songCollection.getById(songId);
+        if (song == null) {
+            logger.warn("Song with ID {} not found", songId);
+            return Collections.emptyList();
+        }
+
+        return playlistCollection.getPlaylistsContainingSong(song);
     }
 
     /**
@@ -748,29 +629,27 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean addSongToPlaylist(String songId, String playlistId) {
-        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("add_song_to_playlist");
-        try {
-            Song song = songCollection.getById(songId);
-            Playlist playlist = playlistCollection.getById(playlistId);
-
-            if (song == null || playlist == null) {
-                logger.warn("Failed to add song to playlist: song={}, playlist={}",
-                        (song == null ? "null" : song.getId()),
-                        (playlist == null ? "null" : playlist.getId()));
-                return false;
-            }
-
-            playlist.addSong(song);
-            playlistCollection.addSongToPlaylist(playlistId, songId);
-
-            logger.info("Added song {} to playlist {}", song.getName(), playlist.getName());
-            return true;
-        } catch (Exception e) {
-            logger.error("Error adding song to playlist: {}", e.getMessage(), e);
+        if (songId == null || playlistId == null) {
+            logger.warn("Failed to add song to playlist: song={}, playlist={}",
+                    songId, playlistId);
             return false;
-        } finally {
-            timer.observeDuration();
         }
+
+        Song song = songCollection.getById(songId);
+        Playlist playlist = playlistCollection.getById(playlistId);
+
+        if (song == null || playlist == null) {
+            logger.warn("Failed to add song to playlist: song={}, playlist={}",
+                    (song == null ? "null" : song.getId()),
+                    (playlist == null ? "null" : playlist.getId()));
+            return false;
+        }
+
+        playlist.addSong(song);
+        playlistCollection.addSongToPlaylist(playlistId, songId);
+
+        logger.info("Added song {} to playlist {}", song.getName(), playlist.getName());
+        return true;
     }
 
     /**
@@ -780,27 +659,22 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean removeSongFromPlaylist(String songId, String playlistId) {
-        try {
-            logger.info("Removing song {} from playlist {}", songId, playlistId);
-            Song song = songCollection.getById(songId);
-            Playlist playlist = playlistCollection.getById(playlistId);
+        logger.info("Removing song {} from playlist {}", songId, playlistId);
+        Song song = songCollection.getById(songId);
+        Playlist playlist = playlistCollection.getById(playlistId);
 
-            if (song == null || playlist == null) {
-                logger.warn("Failed to remove song from playlist: song={}, playlist={}",
-                        (song == null ? "null" : song.getId()),
-                        (playlist == null ? "null" : playlist.getId()));
-                return false;
-            }
-
-            playlist.removeSong(song);
-            playlistCollection.removeSongFromPlaylist(playlistId, songId);
-
-            logger.info("Removed song {} from playlist {}", song.getName(), playlist.getName());
-            return true;
-        } catch (Exception e) {
-            logger.error("Error removing song from playlist: {}", e.getMessage(), e);
+        if (song == null || playlist == null) {
+            logger.warn("Failed to remove song from playlist: song={}, playlist={}",
+                    (song == null ? "null" : song.getId()),
+                    (playlist == null ? "null" : playlist.getId()));
             return false;
         }
+
+        playlist.removeSong(song);
+        playlistCollection.removeSongFromPlaylist(playlistId, songId);
+
+        logger.info("Removed song {} from playlist {}", song.getName(), playlist.getName());
+        return true;
     }
 
     /**
@@ -809,25 +683,20 @@ public class MusicCollectionService {
      * @return List of songs
      */
     public List<Song> getSongsInPlaylist(String playlistId) {
-        try {
-            if (playlistId == null || playlistId.trim().isEmpty()) {
-                logger.warn("Invalid playlist ID for getSongsInPlaylist");
-                return Collections.emptyList();
-            }
-
-            logger.debug("Getting songs for playlist {}", playlistId);
-
-            Playlist playlist = playlistCollection.getById(playlistId);
-            if (playlist == null) {
-                logger.warn("Playlist with ID {} not found", playlistId);
-                return Collections.emptyList();
-            }
-
-            return playlist.getSongs();
-        } catch (Exception e) {
-            logger.error("Error getting songs in playlist: {}", e.getMessage(), e);
+        if (playlistId == null || playlistId.trim().isEmpty()) {
+            logger.warn("Invalid playlist ID for getSongsInPlaylist");
             return Collections.emptyList();
         }
+
+        logger.debug("Getting songs for playlist {}", playlistId);
+
+        Playlist playlist = playlistCollection.getById(playlistId);
+        if (playlist == null) {
+            logger.warn("Playlist with ID {} not found", playlistId);
+            return Collections.emptyList();
+        }
+
+        return playlist.getSongs();
     }
 
     /**
@@ -839,20 +708,15 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean saveData(String artistFile, String albumFile, String songFile, String playlistFile) {
-        try {
-            logger.info("Saving data to files: artist={}, album={}, song={}, playlist={}",
-                    artistFile, albumFile, songFile, playlistFile);
+        logger.info("Saving data to files: artist={}, album={}, song={}, playlist={}",
+                artistFile, albumFile, songFile, playlistFile);
 
-            boolean artistSaved = artistCollection.saveToFile(artistFile);
-            boolean albumSaved = albumCollection.saveToFile(albumFile);
-            boolean songSaved = songCollection.saveToFile(songFile);
-            boolean playlistSaved = playlistCollection.saveToFile(playlistFile);
+        boolean artistSaved = artistCollection.saveToFile(artistFile);
+        boolean albumSaved = albumCollection.saveToFile(albumFile);
+        boolean songSaved = songCollection.saveToFile(songFile);
+        boolean playlistSaved = playlistCollection.saveToFile(playlistFile);
 
-            return artistSaved && albumSaved && songSaved && playlistSaved;
-        } catch (Exception e) {
-            logger.error("Error saving data: {}", e.getMessage(), e);
-            return false;
-        }
+        return artistSaved && albumSaved && songSaved && playlistSaved;
     }
 
     /**
@@ -864,96 +728,95 @@ public class MusicCollectionService {
      * @return true if successful
      */
     public boolean loadData(String artistFile, String albumFile, String songFile, String playlistFile) {
-        try {
-            logger.info("Loading data from files: artist={}, album={}, song={}, playlist={}",
-                    artistFile, albumFile, songFile, playlistFile);
+        logger.info("Loading data from files: artist={}, album={}, song={}, playlist={}",
+                artistFile, albumFile, songFile, playlistFile);
 
-            // Check database first
-            boolean hasData = false;
-
-            try (Connection conn = DatabaseManager.getInstance().getConnection()) {
-                var stmt = conn.createStatement();
-                var rs = stmt.executeQuery("SELECT COUNT(*) FROM artists");
-
-                if (rs.next() && rs.getInt(1) > 0) {
-                    hasData = true;
-                }
-
-                rs.close();
-                stmt.close();
-            } catch (SQLException e) {
-                logger.error("Error checking database: {}", e.getMessage(), e);
-            }
-
-            // If no data in database, load from files
-            if (!hasData) {
-                boolean artistLoaded = artistCollection.loadFromFile(artistFile);
-                boolean albumLoaded = albumCollection.loadFromFile(albumFile);
-                boolean songLoaded = songCollection.loadFromFile(songFile);
-                boolean playlistLoaded = playlistCollection.loadFromFile(playlistFile);
-
-                return artistLoaded || albumLoaded || songLoaded || playlistLoaded;
-            }
-
-            logger.info("Data already exists in database, skipping file import");
-            return true;
-        } catch (Exception e) {
-            logger.error("Error loading data: {}", e.getMessage(), e);
-            return false;
+        // Load in the right order to maintain references
+        boolean artistLoaded = artistCollection.loadFromFile(artistFile);
+        
+        // We need artists to be loaded to maintain album references
+        boolean albumLoaded = false;
+        if (artistLoaded) {
+            albumLoaded = albumCollection.loadFromFile(albumFile);
         }
+        
+        // We need both artists and albums to maintain song references
+        boolean songLoaded = false;
+        if (artistLoaded && albumLoaded) {
+            songLoaded = songCollection.loadFromFile(songFile);
+        }
+        
+        // We need songs to be loaded to maintain playlist references
+        boolean playlistLoaded = false;
+        if (songLoaded) {
+            playlistLoaded = playlistCollection.loadFromFile(playlistFile);
+        }
+        
+        return artistLoaded && albumLoaded && songLoaded && playlistLoaded;
     }
 
     /**
      * Reinitializes the database
      */
     public void reinitializeDatabase() {
+        logger.info("Reinitializing database...");
+        
         try {
-            // Reset database
+            // DatabaseManager sınıfının initializeDatabase metodunu kullanarak 
+            // veritabanını sıfırlayalım
             DatabaseManager.getInstance().setShouldResetDatabase(true);
             DatabaseManager.getInstance().initializeDatabase();
-
-            // Clear and reload collections
+            
+            // Koleksiyonları da temizleyelim
             artistCollection.clear();
             albumCollection.clear();
             songCollection.clear();
             playlistCollection.clear();
-
-            logger.info("Database and collections reinitialized successfully");
-        } catch (Exception e) {
+            
+            logger.info("Database successfully reinitialized");
+        } catch (SQLException e) {
             logger.error("Error reinitializing database: {}", e.getMessage(), e);
         }
     }
 
+    /**
+     * Updates a playlist
+     * @param playlist Playlist to update
+     * @return true if successful
+     */
     public boolean updatePlaylist(Playlist playlist) {
         if (playlist == null) {
             logger.warn("Cannot update null playlist");
             return false;
         }
 
-        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("update_playlist");
-        try {
-            logger.info("Updating playlist: {} (ID: {})", playlist.getName(), playlist.getId());
+        logger.info("Updating playlist: {} (ID: {})", playlist.getName(), playlist.getId());
 
-            // Verify playlist exists
-            Playlist existingPlaylist = playlistCollection.getById(playlist.getId());
-            if (existingPlaylist == null) {
-                logger.warn("Playlist with ID {} not found", playlist.getId());
-                return false;
-            }
-
-            // Update playlist in collection and database
-            return playlistDAO.update(playlist);
-        } catch (Exception e) {
-            logger.error("Error updating playlist: {}", e.getMessage(), e);
+        // Verify playlist exists
+        Playlist existingPlaylist = playlistCollection.getById(playlist.getId());
+        if (existingPlaylist == null) {
+            logger.warn("Playlist with ID {} not found", playlist.getId());
             return false;
-        } finally {
-            timer.observeDuration();
         }
+
+        // Update in database
+        boolean success = playlistDAO.update(playlist);
+        
+        if (success) {
+            // If successful in database, update in memory collection
+            // 1. Remove the old playlist
+            playlistCollection.remove(playlist.getId());
+            // 2. Add the updated playlist
+            playlistCollection.add(playlist);
+        }
+
+        return success;
     }
 
     /**
-     * Method to add to MusicCollectionService class
-     * to support adding a pre-existing playlist
+     * Adds a playlist
+     * @param playlist Playlist to add
+     * @return true if successful
      */
     public boolean addPlaylist(Playlist playlist) {
         if (playlist == null) {
@@ -961,20 +824,8 @@ public class MusicCollectionService {
             return false;
         }
 
-        Histogram.Timer timer = MetricsCollector.getInstance().startRequestTimer("add_playlist");
-        try {
-            logger.info("Adding playlist with ID: {}, name: {}", playlist.getId(), playlist.getName());
-            playlistCollection.add(playlist);
-
-            // Increment metric
-            MetricsCollector.getInstance().incrementPlaylistAdded();
-            return true;
-        } catch (Exception e) {
-            logger.error("Error adding playlist: {}", e.getMessage(), e);
-            return false;
-        } finally {
-            timer.observeDuration();
-        }
+        logger.info("Adding playlist with ID: {}, name: {}", playlist.getId(), playlist.getName());
+        playlistCollection.add(playlist);
+        return true;
     }
-
 }
