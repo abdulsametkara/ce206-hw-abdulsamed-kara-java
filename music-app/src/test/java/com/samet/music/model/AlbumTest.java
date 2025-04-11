@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * @class AlbumTest
- * @brief Album sınıfı için test sınıfı
+ * @brief Test class for Album class
  */
 public class AlbumTest {
 
@@ -17,11 +17,11 @@ public class AlbumTest {
     private Song song2;
 
     /**
-     * @brief Her testten önce çalıştırılır
+     * @brief Runs before each test
      */
     @Before
     public void setUp() throws Exception {
-        // Test için nesneleri oluştur
+        // Create objects for testing
         artist = new Artist("Test Artist", "Test Biography");
         album = new Album("Test Album", artist, 2023);
         song1 = new Song("Test Song 1", artist, 180);
@@ -29,23 +29,23 @@ public class AlbumTest {
     }
 
     /**
-     * @brief Constructor'ı test eder
+     * @brief Tests the constructor
      */
     @Test
     public void testConstructor() {
-        // Doğrudan erişilebilen özellikleri kontrol et
-        assertEquals("Album adı doğru ayarlanmalı", "Test Album", album.getName());
-        assertEquals("Sanatçı doğru ayarlanmalı", artist, album.getArtist());
-        assertEquals("Yayın yılı doğru ayarlanmalı", 2023, album.getReleaseYear());
-        assertEquals("Genre varsayılan değeri 'Unknown' olmalı", "Unknown", album.getGenre());
-        assertEquals("Şarkı listesi boş olarak başlatılmalı", 0, album.getSongs().size());
+        // Check directly accessible properties
+        assertEquals("Album name should be set correctly", "Test Album", album.getName());
+        assertEquals("Artist should be set correctly", artist, album.getArtist());
+        assertEquals("Release year should be set correctly", 2023, album.getReleaseYear());
+        assertEquals("Genre default value should be 'Unknown'", "Unknown", album.getGenre());
+        assertEquals("Song list should be initialized empty", 0, album.getSongs().size());
 
-        // Sanatçının albümleri arasında bu albüm olmalı
-        assertTrue("Sanatçının albümleri arasında yeni albüm olmalı", artist.getAlbums().contains(album));
+        // The album should be in the artist's albums
+        assertTrue("New album should be in artist's albums", artist.getAlbums().contains(album));
     }
 
     /**
-     * @brief Null sanatçı ile constructor'ı test eder
+     * @brief Tests constructor with null artist
      */
     @Test
     public void testConstructorWithNullArtist() {
@@ -59,7 +59,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief setArtist metodunu test eder
+     * @brief Tests setArtist method
      */
     @Test
     public void testSetArtist() {
@@ -76,7 +76,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief setArtist metodunu null değer ile test eder
+     * @brief Tests setArtist method with null value
      */
     @Test
     public void testSetArtistNull() {
@@ -89,7 +89,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief setReleaseYear metodunu test eder
+     * @brief Tests setReleaseYear method
      */
     @Test
     public void testSetReleaseYear() {
@@ -101,7 +101,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief setGenre metodunu test eder
+     * @brief Tests setGenre method
      */
     @Test
     public void testSetGenre() {
@@ -113,7 +113,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief addSong metodunu test eder
+     * @brief Tests addSong method
      */
     @Test
     public void testAddSong() {
@@ -127,7 +127,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief addSong metodunu aynı şarkıyı iki kez ekleyerek test eder
+     * @brief Tests addSong method with the same song twice
      */
     @Test
     public void testAddSongTwice() {
@@ -140,7 +140,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief removeSong metodunu test eder
+     * @brief Tests removeSong method
      */
     @Test
     public void testRemoveSong() {
@@ -160,7 +160,7 @@ public class AlbumTest {
     }
 
     /**
-     * @brief removeSong metodunu albümde olmayan bir şarkı ile test eder
+     * @brief Tests removeSong method with a song that is not in the album
      */
     @Test
     public void testRemoveNonExistingSong() {
@@ -176,25 +176,25 @@ public class AlbumTest {
     }
 
     /**
-     * @brief getSongs metodunun kopyalama özelliğini test eder
-     * (Dış değişikliklerden korunma)
+     * @brief Tests getSongs method's copy feature
+     * (Protection from external modifications)
      */
     @Test
     public void testGetSongsReturnsCopy() {
         // Arrange
         album.addSong(song1);
 
-        // Act - Dönen listeyi değiştirmeye çalış
+        // Act - Try to modify the returned list
         List<Song> songs = album.getSongs();
         songs.add(song2);
 
         // Assert
-        assertEquals("Orijinal şarkı listesi değişmemeli", 1, album.getSongs().size());
-        assertFalse("Orijinal şarkı listesi song2'yi içermemeli", album.getSongs().contains(song2));
+        assertEquals("Original song list should not change", 1, album.getSongs().size());
+        assertFalse("Original song list should not contain song2", album.getSongs().contains(song2));
     }
 
     /**
-     * @brief toString metodunu test eder
+     * @brief Tests toString method
      */
     @Test
     public void testToString() {
@@ -202,12 +202,12 @@ public class AlbumTest {
         String albumString = album.toString();
 
         // Assert
-        assertEquals("toString doğru formatlanmalı",
+        assertEquals("toString should be formatted correctly",
                 "Test Album (2023) by Test Artist", albumString);
     }
 
     /**
-     * @brief toString metodunu null sanatçı ile test eder
+     * @brief Tests toString method with null artist
      */
     @Test
     public void testToStringWithNullArtist() {
@@ -218,7 +218,7 @@ public class AlbumTest {
         String albumString = nullArtistAlbum.toString();
 
         // Assert
-        assertEquals("toString null sanatçı ile doğru formatlanmalı",
+        assertEquals("toString should be formatted correctly with null artist",
                 "No Artist Album (2020) by Unknown Artist", albumString);
     }
 }

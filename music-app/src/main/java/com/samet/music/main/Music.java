@@ -6,7 +6,8 @@ import com.samet.music.ui.MetadataEditingUI;
 import com.samet.music.ui.MusicCollectionUI;
 import com.samet.music.ui.PlaylistUI;
 import com.samet.music.ui.RecommendationUI;
-import com.samet.music.util.DatabaseUtil;
+import com.samet.music.util.DatabaseManager;
+import com.samet.music.db.DatabaseConnection;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -48,13 +49,13 @@ public class Music {
         // Initialize service and UI components
         this.musicService = MusicCollectionService.getInstance();
         this.musicCollectionUI = new MusicCollectionUI(inputScanner, out);
-        this.playlistUI = new PlaylistUI(inputScanner, out);
+        this.playlistUI = new PlaylistUI(musicService, inputScanner);
         this.metadataEditingUI = new MetadataEditingUI(inputScanner, out);
         this.recommendationUI = new RecommendationUI(inputScanner, out);
         this.recommendationSystem = MusicRecommendationSystem.getInstance();
 
         // Initialize user DAO
-        this.userDAO = new UserDAO();
+        this.userDAO = new UserDAO(new DatabaseConnection());
         this.userDAO.createTable();  // Kullanıcı tablosunu oluştur veya kontrol et
 
         // Create data directory if it doesn't exist
@@ -190,6 +191,7 @@ public class Music {
         out.println("7. Delete Song");
         out.println("8. Delete Albums");
         out.println("9. Delete Artist");
+        out.println("10. Add Song to Album"); // Yeni seçenek
         out.println("0. Back to Main Menu");
         out.println("========================================");
         out.print("Please enter your choice: ");
@@ -233,6 +235,8 @@ public class Music {
         out.println("========================================");
         out.print("Please enter your choice: ");
     }
+
+
 
     private boolean displayOpeningScreen() {
         int choice;
@@ -363,7 +367,7 @@ public class Music {
         enterToContinue();
     }
 
-    private void userOptionsMenu() {
+    public void userOptionsMenu() {
         int choice;
         while (true) {
             printMainMenu();
@@ -448,6 +452,10 @@ public class Music {
                     break;
                 case 9: // Delete Artist
                     musicCollectionUI.deleteArtist();
+                    enterToContinue();
+                    break;
+                case 10: // Add Song to Album
+                    musicCollectionUI.addSongToAlbumMenu();
                     enterToContinue();
                     break;
                 default:
@@ -583,8 +591,11 @@ public class Music {
     }
 
     public void mainMenu(String libraryFilePath) {
-        // Veritabanlarını hazırla
-        DatabaseUtil.initializeDatabase();
+        try {
+            DatabaseManager.getInstance().initializeDatabase();
+        } catch (Exception e) {
+            out.println("Error initializing database: " + e.getMessage());
+        }
 
         // Load music collection data
         String artistFile = DATA_DIR + "artists.dat";

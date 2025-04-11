@@ -22,6 +22,24 @@
 	<dependencies>
 		<!-- Testing Dependencies -->
 		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>5.8.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.8.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
+			<version>5.8.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.13.2</version>
@@ -119,28 +137,6 @@
 			<version>4.0.3</version>
 		</dependency>
 		
-		<!-- JavaFX Dependencies -->
-		<dependency>
-			<groupId>org.openjfx</groupId>
-			<artifactId>javafx-controls</artifactId>
-			<version>${javafx.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.openjfx</groupId>
-			<artifactId>javafx-fxml</artifactId>
-			<version>${javafx.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.openjfx</groupId>
-			<artifactId>javafx-graphics</artifactId>
-			<version>${javafx.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.openjfx</groupId>
-			<artifactId>javafx-base</artifactId>
-			<version>${javafx.version}</version>
-		</dependency>
-		
 		<!-- Logging -->
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
@@ -161,16 +157,7 @@
 			</plugin>
 			
 			<!-- JavaFX Maven Plugin -->
-			<plugin>
-				<groupId>org.openjfx</groupId>
-				<artifactId>javafx-maven-plugin</artifactId>
-				<version>0.0.8</version>
-				<configuration>
-					<mainClass>com.samet.music.ui.gui.MusicLibraryApp</mainClass>
-					<launcher>musicapp</launcher>
-					<jlinkImageName>musicapp</jlinkImageName>
-				</configuration>
-			</plugin>
+			<!-- Removed JavaFX plugin -->
 			
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -179,32 +166,31 @@
 				<configuration>
 					<includes>
 						<include>**/*Test.java</include>
+						<include>**/Test*.java</include>
 					</includes>
 					<argLine>@{argLine}</argLine>
 					<testFailureIgnore>true</testFailureIgnore>
+					<useSystemClassLoader>false</useSystemClassLoader>
+					<useFile>false</useFile>
+					<trimStackTrace>false</trimStackTrace>
+					<parallel>none</parallel>
+					<forkCount>1</forkCount>
+					<reuseForks>true</reuseForks>
 				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>org.junit.jupiter</groupId>
+						<artifactId>junit-jupiter-engine</artifactId>
+						<version>5.8.2</version>
+					</dependency>
+					<dependency>
+						<groupId>org.junit.vintage</groupId>
+						<artifactId>junit-vintage-engine</artifactId>
+						<version>5.8.2</version>
+					</dependency>
+				</dependencies>
 			</plugin>
 			
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.10</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>report</id>
-						<phase>test</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- Maven Site Plugin - Updated version -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -235,7 +221,6 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<filters>
 								<filter>
 									<artifact>*:*</artifact>
@@ -248,10 +233,53 @@
 							</filters>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>com.samet.music.ui.gui.MusicLibraryApp</mainClass>
+									<mainClass>com.samet.music.main.MusicApp</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.11</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.ow2.asm</groupId>
+						<artifactId>asm</artifactId>
+						<version>9.6</version>
+					</dependency>
+					<dependency>
+						<groupId>org.ow2.asm</groupId>
+						<artifactId>asm-commons</artifactId>
+						<version>9.6</version>
+					</dependency>
+					<dependency>
+						<groupId>org.ow2.asm</groupId>
+						<artifactId>asm-tree</artifactId>
+						<version>9.6</version>
+					</dependency>
+					<dependency>
+						<groupId>org.ow2.asm</groupId>
+						<artifactId>asm-analysis</artifactId>
+						<version>9.6</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>
@@ -305,18 +333,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-project-info-reports-plugin</artifactId>
 				<version>3.1.2</version>
-			</plugin>
-			
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<reportSets>
-					<reportSet>
-						<reports>
-							<report>report</report>
-						</reports>
-					</reportSet>
-				</reportSets>
 			</plugin>
 		</plugins>
 	</reporting>

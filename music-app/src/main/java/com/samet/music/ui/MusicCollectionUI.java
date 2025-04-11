@@ -1,6 +1,7 @@
 package com.samet.music.ui;
 
-import com.samet.music.util.DatabaseUtil;
+import com.samet.music.util.DatabaseManager;
+import com.samet.music.dao.DAOFactory;
 import com.samet.music.dao.SongDAO;
 import com.samet.music.model.Album;
 import com.samet.music.model.Artist;
@@ -31,7 +32,7 @@ public class MusicCollectionUI {
         this.scanner = scanner;
         this.out = out;
         this.service = MusicCollectionService.getInstance();
-        this.songDAO = new SongDAO();
+        this.songDAO = DAOFactory.getInstance().getSongDAO();
         this.albumCollection = AlbumCollection.getInstance();
     }
 
@@ -125,7 +126,6 @@ public class MusicCollectionUI {
             song.setGenre(genre);
 
             // Doğrudan SongDAO'yu kullan
-            SongDAO songDAO = new SongDAO();
             songDAO.insert(song);
 
             out.println("\nSong '" + name + "' added successfully!");
@@ -296,14 +296,72 @@ public class MusicCollectionUI {
         out.println("Trying to add album: " + name + ", Artist ID: " + selectedArtist.getId() +
                 ", Release Year: " + releaseYear + ", Genre: " + genre);
 
-        // Create the album
         boolean success = service.addAlbum(name, selectedArtist.getId(), releaseYear, genre);
 
         if (success) {
             out.println("\nAlbum '" + name + "' added successfully!");
+
+            // Albüm oluşturulduktan sonra şarkı eklemek isteyip istemediğini sor
+            out.print("Do you want to add songs to this album? (y/n): ");
+            String answer = scanner.nextLine().trim().toLowerCase();
+
+            if (answer.equals("y") || answer.equals("yes")) {
+                // Yeni oluşturulan albümü bul
+                List<Album> albums = service.getAlbumsByArtist(selectedArtist.getId());
+                Album newAlbum = null;
+
+                for (Album album : albums) {
+                    if (album.getName().equals(name)) {
+                        newAlbum = album;
+                        break;
+                    }
+                }
+
+                if (newAlbum != null) {
+                    // Şarkı ekleme işlemini sanatçı ile çağır
+                    addSongToAlbum(selectedArtist);
+                } else {
+                    out.println("Could not locate the newly created album. Please add songs from the menu.");
+                }
+            }
         } else {
             out.println("\nFailed to add album. Please try again.");
         }
+    }
+
+    public void addSongToAlbumMenu() {
+        out.println("\n========== ADD SONG TO ALBUM ==========");
+
+        // Önce sanatçıları listele
+        List<Artist> artists = service.getAllArtists();
+        if (artists.isEmpty()) {
+            out.println("No artists available. You need to add an artist first.");
+            return;
+        }
+
+        // Sanatçıları göster
+        out.println("\nSelect an artist:");
+        for (int i = 0; i < artists.size(); i++) {
+            out.println((i + 1) + ". " + artists.get(i).getName());
+        }
+
+        // Sanatçı seçimini al
+        out.print("\nEnter artist number (0 to cancel): ");
+        int artistIndex;
+        try {
+            artistIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
+            if (artistIndex < 0 || artistIndex >= artists.size()) {
+                out.println("Invalid selection or cancelled.");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            out.println("Invalid input. Operation cancelled.");
+            return;
+        }
+
+        Artist selectedArtist = artists.get(artistIndex);
+        // Seçilen sanatçıyla şarkı ekleme metodunu çağır
+        addSongToAlbum(selectedArtist);
     }
 
     /**
@@ -609,7 +667,7 @@ public class MusicCollectionUI {
                 return false;
             }
 
-            Connection conn = DatabaseUtil.getConnection();
+            Connection conn = DatabaseManager.getConnection();
             conn.setAutoCommit(false); // Transaction başlat
 
             try {
@@ -772,7 +830,7 @@ public class MusicCollectionUI {
                 return false;
             }
 
-            Connection conn = DatabaseUtil.getConnection();
+            Connection conn = DatabaseManager.getConnection();
             conn.setAutoCommit(false); // Transaction başlat
 
             try {

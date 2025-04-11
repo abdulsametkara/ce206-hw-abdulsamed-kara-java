@@ -9,7 +9,7 @@ import java.util.List;
 public class Artist extends BaseEntity {
     private String biography;
     private List<Album> albums;
-    private String originalId; // Veritabanından gelen orijinal ID'yi saklamak için
+    private String originalId; // To store the original ID from database
 
     public Artist(String name) {
         super(name);
@@ -24,7 +24,7 @@ public class Artist extends BaseEntity {
     }
 
     /**
-     * Özel ID ile sanatçı oluşturur (veritabanından gelen ID için)
+     * Creates an artist with a specific ID (for ID from database)
      */
     public Artist(String id, String name, String biography) {
         super(name);
@@ -56,8 +56,8 @@ public class Artist extends BaseEntity {
     }
 
     /**
-     * Sanatçının ID'sini döndürür.
-     * Eğer veritabanından özel bir ID atanmışsa, onu kullanır.
+     * Returns the artist's ID.
+     * If a special ID has been assigned from the database, uses that.
      */
     @Override
     public String getId() {
@@ -68,7 +68,7 @@ public class Artist extends BaseEntity {
     }
 
     /**
-     * Veritabanından orijinal ID'yi ayarlar
+     * Sets the original ID from database
      */
     public void setOriginalId(String id) {
         this.originalId = id;
