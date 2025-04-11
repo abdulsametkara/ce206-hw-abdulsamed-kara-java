@@ -7,23 +7,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Application initializer class
- * Responsible for starting up application components
+ * Uygulama başlatıcı sınıfı
+ * Uygulama bileşenlerinin başlatılmasından sorumludur
  */
 public class MusicAppInitializer {
+    // Loglama için logger nesnesi
     private static final Logger logger = LoggerFactory.getLogger(MusicAppInitializer.class);
 
+    // Singleton instance
     private static volatile MusicAppInitializer instance;
 
     /**
-     * Private constructor to prevent direct instantiation
+     * Singleton tasarım deseni için özel yapıcı metot
+     * Doğrudan örnek oluşturulmasını engeller
      */
     private MusicAppInitializer() {
-        // Private constructor
+        // Özel yapıcı
     }
 
     /**
-     * Returns the singleton instance
+     * Singleton instance'ı döndürür
+     * @return MusicAppInitializer instance
      */
     public static MusicAppInitializer getInstance() {
         if (instance == null) {
@@ -37,63 +41,65 @@ public class MusicAppInitializer {
     }
 
     /**
-     * Initializes the application
+     * Uygulamayı başlatır
+     * Veritabanı yöneticisi, DAO fabrikası ve servis katmanını başlatır
      */
     public void initialize() {
-        logger.info("Initializing music application...");
+        logger.info("Müzik uygulaması başlatılıyor...");
 
         try {
-            // Initialize database manager
+            // Veritabanı yöneticisini başlat
             DatabaseManager.getInstance();
-            logger.info("Database manager initialized successfully");
+            logger.info("Veritabanı yöneticisi başarıyla başlatıldı");
 
-            // Initialize DAO factory
+            // DAO fabrikasını başlat
             DAOFactory.getInstance();
-            logger.info("DAO factory initialized successfully");
+            logger.info("DAO fabrikası başarıyla başlatıldı");
 
-            // Initialize service layer
+            // Servis katmanını başlat
             MusicCollectionService.getInstance();
-            logger.info("Service layer initialized successfully");
+            logger.info("Servis katmanı başarıyla başlatıldı");
 
-            logger.info("Application initialized successfully");
+            logger.info("Uygulama başarıyla başlatıldı");
         } catch (Exception e) {
-            logger.error("Failed to initialize application: {}", e.getMessage(), e);
-            throw new RuntimeException("Application initialization failed", e);
+            logger.error("Uygulama başlatılamadı: {}", e.getMessage(), e);
+            throw new RuntimeException("Uygulama başlatma başarısız", e);
         }
     }
 
     /**
-     * Resets the database (for testing/development)
-     * @param resetDatabase flag to reset database
+     * Veritabanını sıfırlar (test/geliştirme için)
+     * @param resetDatabase veritabanını sıfırlama bayrağı
      */
     public void resetDatabase(boolean resetDatabase) {
         if (resetDatabase) {
             try {
-                logger.info("Resetting database...");
+                logger.info("Veritabanı sıfırlanıyor...");
                 DatabaseManager.getInstance().setShouldResetDatabase(true);
                 DatabaseManager.getInstance().initializeDatabase();
                 MusicCollectionService.getInstance().reinitializeDatabase();
-                logger.info("Database reset successfully");
+                logger.info("Veritabanı başarıyla sıfırlandı");
             } catch (Exception e) {
-                logger.error("Failed to reset database: {}", e.getMessage(), e);
+                logger.error("Veritabanı sıfırlanamadı: {}", e.getMessage(), e);
             }
         }
     }
 
     /**
-     * Shuts down the application
+     * Uygulamayı kapatır
+     * Veritabanı bağlantılarını kapatır ve kaynakları temizler
      */
     public void shutdown() {
-        logger.info("Shutting down application...");
+        logger.info("Uygulama kapatılıyor...");
 
         try {
-            // Close database connections
+            // Veritabanı bağlantılarını kapat
             DatabaseManager.getInstance().closeAllConnections();
-            logger.info("Database connections closed");
+            logger.info("Veritabanı bağlantıları kapatıldı");
 
-            logger.info("Application shutdown complete");
+            logger.info("Uygulama kapatma işlemi tamamlandı");
         } catch (Exception e) {
-            logger.error("Error during application shutdown: {}", e.getMessage(), e);
+            logger.error("Uygulama kapatma sırasında hata: {}", e.getMessage(), e);
         }
     }
 }

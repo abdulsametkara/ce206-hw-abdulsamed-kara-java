@@ -7,38 +7,41 @@ import org.slf4j.LoggerFactory;
 import java.util.Scanner;
 
 /**
- * Main application class
+ * Ana uygulama sınıfı - Müzik kütüphanesi uygulamasının başlangıç noktası
+ * Bu sınıf uygulamanın başlatılması, başlatma ve kapatma işlemlerini yönetir
  */
 public class MusicApp {
+  // Loglama için logger nesnesi
   private static final Logger logger = LoggerFactory.getLogger(MusicApp.class);
 
   /**
-   * Application entry point
+   * Uygulama giriş noktası
+   * @param args Komut satırı argümanları
    */
   public static void main(String[] args) {
-    logger.info("Starting music application...");
+    logger.info("Müzik uygulaması başlatılıyor...");
 
     try {
-      // Initialize application
+      // Uygulamayı başlat
       MusicAppInitializer initializer = MusicAppInitializer.getInstance();
       initializer.initialize();
 
-      // Create and run the Music UI with the library path
+      // Kullanıcı girişi için scanner ve çıktı için PrintStream oluştur
       Scanner scanner = new Scanner(System.in);
       Music music = new Music(scanner, System.out);
 
-      // Run the main menu - NOTE: Calling mainMenu with actual library path
+      // Ana menüyü başlat - Kullanıcı kimlik bilgileri dosyası yolu ile
       music.mainMenu("data/user_credentials.txt");
 
-      // Shutdown application
+      // Uygulamayı kapat
       initializer.shutdown();
 
-      // Close resources
+      // Kaynakları temizle
       scanner.close();
 
-      logger.info("Application terminated successfully");
+      logger.info("Uygulama başarıyla sonlandırıldı");
     } catch (Exception e) {
-      logger.error("Application terminated with error: {}", e.getMessage(), e);
+      logger.error("Uygulama hata ile sonlandırıldı: {}", e.getMessage(), e);
       System.exit(1);
     }
   }

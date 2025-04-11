@@ -18,7 +18,6 @@ import java.io.PrintStream;
 
 public class Music {
 
-
     /** Scanner object for user input. */
     public Scanner scanner;
     /** PrintStream object for output. */
@@ -42,6 +41,11 @@ public class Music {
      */
     public boolean isTestMode = false;
 
+    /**
+     * Music sınıfının yapıcı metodu
+     * @param inputScanner Kullanıcı girişi için scanner
+     * @param out Çıktı için PrintStream
+     */
     public Music(Scanner inputScanner, PrintStream out) {
         this.scanner = inputScanner;
         this.out = out;
@@ -61,6 +65,10 @@ public class Music {
         // Create data directory if it doesn't exist
         createDataDirectory();
     }
+
+    /**
+     * Veri dizinini oluşturur - Eğer dizin yoksa yeni dizin oluşturur
+     */
     private void createDataDirectory() {
         File directory = new File(DATA_DIR);
         if (!directory.exists()) {
@@ -68,15 +76,18 @@ public class Music {
         }
     }
 
+    /**
+     * Ekranı temizler - Konsol çıktısını sıfırlar
+     */
     public void clearScreen() {
         out.print("\033[H\033[2J");
         out.flush();
     }
 
     /**
-     * Displays a stylish message box
-     * @param message The message to display
-     * @param type The type of message (success, error, info)
+     * Stilize edilmiş bir mesaj kutusu gösterir
+     * @param message Gösterilecek mesaj
+     * @param type Mesaj tipi (başarı, hata, bilgi)
      */
     public void showMessage(String message, String type) {
         String color;
@@ -109,8 +120,8 @@ public class Music {
     }
 
     /**
-     * Displays a stylish title for a screen
-     * @param title The title to display
+     * Stilize edilmiş bir başlık gösterir
+     * @param title Gösterilecek başlık
      */
     public void showTitle(String title) {
         int width = title.length() + 4;
@@ -121,6 +132,10 @@ public class Music {
         out.println(border + "\n");
     }
 
+    /**
+     * Kullanıcıdan sayısal giriş alır
+     * @return Kullanıcının girdiği sayı veya hata durumunda -2
+     */
     public int getInput() {
         try {
             int input = scanner.nextInt();
@@ -134,14 +149,18 @@ public class Music {
     }
 
     /**
-     * Displays error message for invalid input
+     * Geçersiz giriş için hata mesajı gösterir
      */
     public void handleInputError() {
         clearScreen();
         out.println("Invalid input. Please enter a number.");
     }
 
-    public  boolean enterToContinue() {
+    /**
+     * Devam etmek için enter tuşuna basılmasını bekler
+     * @return Her zaman true döner
+     */
+    public boolean enterToContinue() {
         out.println("Press enter to continue...");
         if (!isTestMode) {
             scanner.nextLine();
@@ -149,6 +168,9 @@ public class Music {
         return true;
     }
 
+    /**
+     * Açılış ekranını gösterir - Giriş yapma, kayıt olma ve çıkış seçenekleri
+     */
     public void printOpeningScreen() {
         clearScreen();
         out.println("=============== MAIN MENU ===============");
@@ -159,6 +181,9 @@ public class Music {
         out.print("Please enter a number: ");
     }
 
+    /**
+     * Ana menüyü gösterir - Müzik kütüphanesi ana işlevleri
+     */
     public void printMainMenu() {
         clearScreen();
         out.println("========================================");
@@ -177,6 +202,9 @@ public class Music {
         out.print("Please enter your choice: ");
     }
 
+    /**
+     * Müzik koleksiyonu menüsünü gösterir - Şarkı, albüm ve sanatçı yönetimi
+     */
     public void printMusicCollectionMenu() {
         clearScreen();
         out.println("========================================");
@@ -197,6 +225,9 @@ public class Music {
         out.print("Please enter your choice: ");
     }
 
+    /**
+     * Çalma listeleri menüsünü gösterir - Çalma listesi oluşturma ve düzenleme
+     */
     public void printPlayistsMenu() {
         clearScreen();
         out.println("========================================");
@@ -210,6 +241,9 @@ public class Music {
         out.print("Please enter your choice: ");
     }
 
+    /**
+     * Meta veri düzenleme menüsünü gösterir - Sanatçı, albüm ve şarkı bilgilerini düzenleme
+     */
     public void printEditMetadataMenu() {
         clearScreen();
         out.println("========================================");
@@ -223,6 +257,9 @@ public class Music {
         out.print("Please enter your choice: ");
     }
 
+    /**
+     * Öneriler menüsünü gösterir - Şarkı, albüm ve sanatçı önerileri
+     */
     public void printRecommendationsMenu() {
         clearScreen();
         out.println("========================================");
@@ -236,8 +273,10 @@ public class Music {
         out.print("Please enter your choice: ");
     }
 
-
-
+    /**
+     * Açılış ekranını gösterir ve kullanıcı seçimini işler
+     * @return Kullanıcı çıkış yapmak isterse false, devam etmek isterse true döner
+     */
     private boolean displayOpeningScreen() {
         int choice;
         while (true) {
@@ -270,6 +309,10 @@ public class Music {
         }
     }
 
+    /**
+     * Kullanıcı girişi işlemini gerçekleştirir
+     * @return Giriş başarılı ise true, değilse false döner
+     */
     private boolean loginUser() {
         clearScreen();
         Scanner in = new Scanner(System.in);
@@ -313,7 +356,9 @@ public class Music {
         return true;
     }
 
-
+    /**
+     * Yeni kullanıcı kaydı oluşturur
+     */
     private void registerUser() {
         clearScreen();
         Scanner in = new Scanner(System.in);
@@ -367,6 +412,9 @@ public class Music {
         enterToContinue();
     }
 
+    /**
+     * Ana menü seçeneklerini işler - Kullanıcı giriş yaptıktan sonraki ana işlevler
+     */
     public void userOptionsMenu() {
         int choice;
         while (true) {
@@ -402,6 +450,9 @@ public class Music {
         }
     }
 
+    /**
+     * Müzik koleksiyonu menü seçeneklerini işler - Şarkı, albüm ve sanatçı yönetimi
+     */
     public void musicCollectionMenu() {
         int choice;
 
@@ -467,7 +518,9 @@ public class Music {
         }
     }
 
-    // PlaylistsMenu metodunu güncelleyin
+    /**
+     * Çalma listeleri menü seçeneklerini işler - Çalma listesi oluşturma ve düzenleme
+     */
     public void playlistsMenu() {
         int choice;
 
@@ -505,6 +558,9 @@ public class Music {
         }
     }
 
+    /**
+     * Meta veri düzenleme menü seçeneklerini işler - Sanatçı, albüm ve şarkı bilgilerini düzenleme
+     */
     public void editMetadataMenu() {
         int choice;
 
@@ -542,6 +598,9 @@ public class Music {
         }
     }
 
+    /**
+     * Öneriler menü seçeneklerini işler - Şarkı, albüm ve sanatçı önerileri
+     */
     public void recommendationsMenu() {
         int choice;
 
@@ -580,7 +639,7 @@ public class Music {
     }
 
     /**
-     * Logs out the current user
+     * Kullanıcı çıkışı yapar - Oturumu sonlandırır
      */
     private void logout() {
         clearScreen();
@@ -590,6 +649,10 @@ public class Music {
         enterToContinue();
     }
 
+    /**
+     * Ana menüyü başlatır ve kullanıcı etkileşimini yönetir
+     * @param libraryFilePath Kütüphane verilerinin dosya yolu
+     */
     public void mainMenu(String libraryFilePath) {
         try {
             DatabaseManager.getInstance().initializeDatabase();
@@ -618,6 +681,10 @@ public class Music {
         recommendationSystem.saveRecommendationData(recommendationFile);
     }
 
+    /**
+     * Kütüphane verilerini dosyadan yükler
+     * @param filePath Veri dosyasının yolu
+     */
     private void loadLibraryData(String filePath) {
         File userFile = new File(filePath);
 
@@ -646,9 +713,8 @@ public class Music {
     }
 
     /**
-     * Saves library data to file
-     *
-     * @param filePath Path to the library data file
+     * Kütüphane verilerini dosyaya kaydeder
+     * @param filePath Veri dosyasının yolu
      */
     private void saveLibraryData(String filePath) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
@@ -661,6 +727,4 @@ public class Music {
             out.println("Error saving user data: " + e.getMessage());
         }
     }
-
-
 }
