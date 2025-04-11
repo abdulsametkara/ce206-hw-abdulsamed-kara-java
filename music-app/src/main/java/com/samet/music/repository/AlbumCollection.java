@@ -8,25 +8,23 @@ import com.samet.music.model.Artist;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class AlbumCollection extends MusicCollectionBase<Album> {
     private static final Logger logger = LoggerFactory.getLogger(AlbumCollection.class);
     private static AlbumCollection instance;
-    private final AlbumDAO albumDAO;
-    private final ArtistDAO artistDAO;
+    private AlbumDAO albumDAO;
+    private ArtistDAO artistDAO;
 
     private AlbumCollection() {
-        DAOFactory daoFactory = DAOFactory.getInstance();
-        albumDAO = daoFactory.getAlbumDAO();
-        artistDAO = daoFactory.getArtistDAO();
+        this(DAOFactory.getInstance());
+    }
+
+    // Test için constructor
+    protected AlbumCollection(DAOFactory daoFactory) {
+        this.albumDAO = daoFactory.getAlbumDAO();
+        this.artistDAO = daoFactory.getArtistDAO();
         logger.info("AlbumCollection initialized");
     }
 
@@ -35,6 +33,11 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
             instance = new AlbumCollection();
         }
         return instance;
+    }
+
+    // Test için instance'ı sıfırlama metodu
+    protected static void resetInstance() {
+        instance = null;
     }
 
     @Override
@@ -51,11 +54,13 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
 
         logger.debug("Adding album: {}", album.getName());
 
-        super.add(album);
-
         try {
-            albumDAO.insert(album);
-            logger.info("Album successfully added: {}", album.getName());
+            if (albumDAO.insert(album)) {
+                super.add(album);
+                logger.info("Album successfully added: {}", album.getName());
+            } else {
+                logger.error("Failed to add album to database");
+            }
         } catch (Exception e) {
             logger.error("Error adding album to database: {}", e.getMessage(), e);
         }
@@ -91,30 +96,21 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
     @Override
     public List<Album> getAll() {
         logger.debug("Getting all albums");
-
-        // Load from database if needed
-        if (!isLoaded) {
-            loadFromDatabase();
-            isLoaded = true;
-        }
-
+        loadFromDatabase();
         return super.getAll();
     }
 
     @Override
     protected void loadFromDatabase() {
         logger.info("Loading albums from database...");
-        clear(); // First clear existing items
+        clear();
 
         try {
             List<Album> albums = albumDAO.getAll();
-
             for (Album album : albums) {
                 super.add(album);
             }
-
             logger.info("Loaded {} albums", albums.size());
-
         } catch (Exception e) {
             logger.error("Error loading albums from database: {}", e.getMessage(), e);
         }
@@ -129,16 +125,17 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
 
         logger.info("Removing album. ID: {}", id);
 
-        boolean removed = super.remove(id);
-
         try {
-            albumDAO.delete(id);
-            logger.info("Album removed from database");
+            if (albumDAO.delete(id)) {
+                super.remove(id);
+                logger.info("Album removed from database");
+                return true;
+            }
+            return false;
         } catch (Exception e) {
             logger.error("Error removing album from database: {}", e.getMessage(), e);
+            return false;
         }
-
-        return removed;
     }
 
     public boolean deleteWithoutSongs(String id) {
@@ -149,19 +146,17 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
 
         logger.info("Removing album while keeping songs. ID: {}", id);
 
-        // Remove from cache
-        boolean removed = super.remove(id);
-
         try {
-            // Use special method in AlbumDAO
-            albumDAO.deleteWithoutSongs(id);
-            logger.info("Album removed from database, songs preserved");
+            if (albumDAO.deleteWithoutSongs(id)) {
+                super.remove(id);
+                logger.info("Album removed from database, songs preserved");
+                return true;
+            }
+            return false;
         } catch (Exception e) {
             logger.error("Error removing album: {}", e.getMessage(), e);
             return false;
         }
-
-        return removed;
     }
 
     public List<Album> searchByName(String name) {
@@ -194,22 +189,18 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
 
         logger.debug("Getting albums by artist: {}", artist.getName());
 
-        if (!isLoaded) {
-            loadFromDatabase();
-            isLoaded = true;
-        }
+        List<Album> results = new ArrayList<>();
+        List<Album> allAlbums = getAll();
 
-        List<Album> result = new ArrayList<>();
         String artistId = artist.getId();
-
-        for (Album album : items.values()) {
+        for (Album album : allAlbums) {
             if (album.getArtist() != null && album.getArtist().getId().equals(artistId)) {
-                result.add(album);
+                results.add(album);
             }
         }
 
-        logger.debug("Found {} albums for artist", result.size());
-        return result;
+        logger.debug("Found {} albums for artist", results.size());
+        return results;
     }
 
     public List<Album> getByGenre(String genre) {
@@ -225,7 +216,7 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
 
         String searchTerm = genre.toLowerCase();
         for (Album album : allAlbums) {
-            if (album.getGenre().toLowerCase().contains(searchTerm)) {
+            if (album.getGenre() != null && album.getGenre().toLowerCase().contains(searchTerm)) {
                 results.add(album);
             }
         }
@@ -237,8 +228,6 @@ public class AlbumCollection extends MusicCollectionBase<Album> {
     @Override
     public boolean loadFromFile(String filePath) {
         logger.info("Loading all albums from database");
-
-        // Load directly from database
         loadFromDatabase();
         isLoaded = true;
         return true;
