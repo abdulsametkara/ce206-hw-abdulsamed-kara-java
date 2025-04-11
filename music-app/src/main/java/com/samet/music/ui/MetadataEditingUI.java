@@ -1,10 +1,13 @@
 package com.samet.music.ui;
 
 import com.samet.music.dao.ArtistDAO;
+import com.samet.music.dao.DAOFactory;
 import com.samet.music.model.Album;
 import com.samet.music.model.Artist;
 import com.samet.music.model.Song;
 import com.samet.music.service.MusicCollectionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.PrintStream;
 import java.util.List;
@@ -14,9 +17,11 @@ import java.util.Scanner;
  * UI handler for metadata editing operations
  */
 public class MetadataEditingUI {
-    private final Scanner scanner;
-    private final PrintStream out;
-    private final MusicCollectionService service;
+    private static final Logger logger = LoggerFactory.getLogger(MetadataEditingUI.class);
+
+    Scanner scanner;
+    public final PrintStream out;
+    public MusicCollectionService service;
 
     public MetadataEditingUI(Scanner scanner, PrintStream out) {
         this.scanner = scanner;
@@ -93,7 +98,7 @@ public class MetadataEditingUI {
         }
     }
 
-    private void editArtistName(Artist artist) {
+    void editArtistName(Artist artist) {
         out.println("\nCurrent name: " + artist.getName());
         out.print("Enter new name: ");
         String newName = scanner.nextLine().trim();
@@ -111,7 +116,7 @@ public class MetadataEditingUI {
         artist.setName(newName);
 
         // ArtistDAO'yu kullanarak veritabanını güncelle
-        ArtistDAO artistDAO = new ArtistDAO();
+        ArtistDAO artistDAO = DAOFactory.getInstance().getArtistDAO();
         artistDAO.update(artist);
 
         out.println("Artist name updated successfully to '" + newName + "'.");
@@ -126,7 +131,7 @@ public class MetadataEditingUI {
     /**
      * Edit artist biography
      */
-    private void editArtistBiography(Artist artist) {
+    void editArtistBiography(Artist artist) {
         out.println("\nCurrent biography: " +
                 (artist.getBiography().isEmpty() ? "[No biography]" : artist.getBiography()));
         out.println("Enter new biography (or leave empty to clear):");
@@ -316,80 +321,66 @@ public class MetadataEditingUI {
         out.println("Album artist updated successfully to '" + selectedArtist.getName() + "'.");
     }
 
-    /**
-     * Handles editing song metadata (genre)
-     */
     public void editSongGenre() {
-        out.println("\n========== EDIT SONG GENRE ==========");
-
+        System.out.println("\n========== EDIT SONG GENRE ==========");
         List<Song> songs = service.getAllSongs();
+
         if (songs.isEmpty()) {
-            out.println("No songs found in the collection.");
+            System.out.println("No songs in the collection.");
             return;
         }
 
-        // Display available songs
-        out.println("\nSelect a song to edit:");
+        System.out.println("Select a song to edit:");
         for (int i = 0; i < songs.size(); i++) {
             Song song = songs.get(i);
-            String artistName = song.getArtist() != null ? song.getArtist().getName() : "Unknown";
-            out.println((i + 1) + ". " + song.getName() + " by " + artistName +
-                    " (" + song.getFormattedDuration() + ") - Genre: " + song.getGenre());
+            String artist = song.getArtist() != null ? song.getArtist().getName() : "Unknown";
+            int minutes = song.getDuration() / 60;
+            int seconds = song.getDuration() % 60;
+            System.out.printf("%d. %s by %s (%d:%02d) - Genre: %s\n",
+                    i + 1, song.getName(), artist, minutes, seconds, song.getGenre());
         }
 
-        // Get user selection
-        out.print("\nEnter song number (or 0 to cancel): ");
-        int songIndex;
-        try {
-            songIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (songIndex == 0) {
-                return; // User cancelled
-            }
-            songIndex--; // Convert to 0-based index
+        System.out.print("Enter song number (or 0 to cancel): ");
+        int choice = scanner.nextInt();
+        scanner.nextLine(); // consume newline
 
-            if (songIndex < 0 || songIndex >= songs.size()) {
-                out.println("Invalid selection. Operation cancelled.");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            out.println("Invalid input. Operation cancelled.");
+        if (choice <= 0 || choice > songs.size()) {
             return;
         }
 
-        Song selectedSong = songs.get(songIndex);
+        Song selectedSong = songs.get(choice - 1);
+        System.out.println("Current genre: " + selectedSong.getGenre());
+        System.out.print("Enter new genre: ");
+        String newGenre = scanner.nextLine();
 
-        // Edit genre
-        out.println("\nCurrent genre: " + selectedSong.getGenre());
-        out.print("Enter new genre: ");
-        String newGenre = scanner.nextLine().trim();
-
-        if (newGenre.isEmpty()) {
-            newGenre = "Unknown";
-        }
-
+        // Update genre
         selectedSong.setGenre(newGenre);
-        out.println("Song genre updated successfully to '" + newGenre + "'.");
 
-        // Ask if user wants to apply the same genre to all songs in the album
-        if (selectedSong.getAlbum() != null) {
-            out.println("\nDo you want to apply this genre to all songs in the album '" +
-                    selectedSong.getAlbum().getName() + "'?");
-            out.println("1. Yes");
-            out.println("2. No");
-            out.print("Your choice: ");
+        // Update in database - Burada doğrudan DAO'yu kullanıyoruz
+        boolean success = DAOFactory.getInstance().getSongDAO().update(selectedSong);
 
-            try {
-                int choice = Integer.parseInt(scanner.nextLine().trim());
-                if (choice == 1) {
-                    List<Song> albumSongs = service.getSongsByAlbum(selectedSong.getAlbum().getId());
-                    for (Song song : albumSongs) {
-                        song.setGenre(newGenre);
-                    }
-                    out.println("Genre updated for all songs in the album.");
-                }
-            } catch (NumberFormatException e) {
-                // Ignore invalid input, do nothing
-            }
+        if (success) {
+            System.out.println("Song genre updated successfully to '" + newGenre + "'.");
+        } else {
+            System.out.println("Failed to update song genre.");
+        }
+    }
+
+    private void updateAlbumGenre(Album album) {
+        System.out.println("Current genre: " + album.getGenre());
+        System.out.print("Enter new genre: ");
+        String newGenre = scanner.nextLine();
+
+        // Update genre
+        album.setGenre(newGenre);
+
+        // Update in database - Burada doğrudan DAO'yu kullanıyoruz
+        boolean success = DAOFactory.getInstance().getAlbumDAO().update(album);
+
+        if (success) {
+            System.out.println("Album genre updated successfully to '" + newGenre + "'.");
+        } else {
+            System.out.println("Failed to update album genre.");
         }
     }
 }

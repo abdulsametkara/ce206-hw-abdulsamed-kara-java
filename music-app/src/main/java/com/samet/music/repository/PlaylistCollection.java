@@ -1,26 +1,40 @@
 package com.samet.music.repository;
 
+import com.samet.music.dao.DAOFactory;
 import com.samet.music.dao.PlaylistDAO;
 import com.samet.music.dao.SongDAO;
 import com.samet.music.model.Playlist;
 import com.samet.music.model.Song;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.sql.SQLException;
 
+/**
+ * Repository for playlist operations
+ */
 public class PlaylistCollection extends MusicCollectionManager<Playlist> {
-    private static PlaylistCollection instance;
-    private PlaylistDAO playlistDAO;
-    private SongDAO songDAO;
+    private static final Logger logger = LoggerFactory.getLogger(PlaylistCollection.class);
+    private static volatile PlaylistCollection instance;
+    private final PlaylistDAO playlistDAO;
+    private final SongDAO songDAO;
 
-    private PlaylistCollection() {
-        playlistDAO = new PlaylistDAO();
-        songDAO = new SongDAO();
+    private PlaylistCollection() throws SQLException {
+        DAOFactory daoFactory = DAOFactory.getInstance();
+        this.playlistDAO = daoFactory.getPlaylistDAO();
+        this.songDAO = daoFactory.getSongDAO();
+        logger.info("PlaylistCollection başlatıldı");
     }
 
     public static synchronized PlaylistCollection getInstance() {
         if (instance == null) {
-            instance = new PlaylistCollection();
+            try {
+                instance = new PlaylistCollection();
+            } catch (SQLException e) {
+                logger.error("Error initializing PlaylistCollection: {}", e.getMessage(), e);
+            }
         }
         return instance;
     }
@@ -32,25 +46,45 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
 
     @Override
     public void add(Playlist playlist) {
+        if (playlist == null) {
+            logger.warn("Null çalma listesi eklenemez");
+            return;
+        }
+
+        logger.debug("Çalma listesi ekleniyor: {}", playlist.getName());
+
         super.add(playlist);
-        playlistDAO.insert(playlist);
+
+        try {
+            playlistDAO.insert(playlist);
+            logger.info("Çalma listesi başarıyla eklendi: {}", playlist.getName());
+        } catch (Exception e) {
+            logger.error("Çalma listesi veritabanına eklenirken hata: {}", e.getMessage(), e);
+        }
     }
 
     @Override
     public Playlist getById(String id) {
+        if (id == null || id.isEmpty()) {
+            logger.warn("Geçersiz çalma listesi ID'si");
+            return null;
+        }
+
+        logger.debug("ID'ye göre çalma listesi getiriliyor: {}", id);
+
         Playlist playlist = super.getById(id);
 
         if (playlist == null) {
-            System.out.println("PlaylistCollection: Playlist not found in memory cache, trying database...");
+            logger.debug("Çalma listesi önbellekte bulunamadı, veritabanından alınıyor");
             playlist = playlistDAO.getById(id);
             if (playlist != null) {
-                System.out.println("PlaylistCollection: Found playlist in database, adding to memory cache");
                 super.add(playlist);
+                logger.debug("Çalma listesi veritabanında bulundu ve önbelleğe eklendi: {}", playlist.getName());
             } else {
-                System.out.println("PlaylistCollection: Playlist not found in database either");
+                logger.debug("Çalma listesi veritabanında da bulunamadı");
             }
         } else {
-            System.out.println("PlaylistCollection: Found playlist in memory cache");
+            logger.debug("Çalma listesi önbellekte bulundu: {}", playlist.getName());
         }
 
         return playlist;
@@ -58,46 +92,58 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
 
     @Override
     public List<Playlist> getAll() {
+        logger.debug("Tüm çalma listeleri getiriliyor");
         return playlistDAO.getAll();
     }
 
     @Override
     public boolean remove(String id) {
+        if (id == null || id.isEmpty()) {
+            logger.warn("Geçersiz çalma listesi ID'si");
+            return false;
+        }
+
         try {
-            System.out.println("Removing playlist with ID: " + id);
+            logger.info("Çalma listesi siliniyor. ID: {}", id);
 
             // Önce ana koleksiyondan kaldır
             boolean removed = super.remove(id);
-            System.out.println("Removed from memory collection: " + removed);
+            logger.debug("Önbellekten kaldırıldı: {}", removed);
 
             // Sonra DAO üzerinden sil
             playlistDAO.delete(id);
-            System.out.println("Deleted from database through DAO");
+            logger.info("Çalma listesi veritabanından silindi");
 
             return true;
         } catch (Exception e) {
-            System.err.println("Error in PlaylistCollection.remove: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Çalma listesi silinirken hata: {}", e.getMessage(), e);
             return false;
         }
     }
+
     @Override
     protected void loadFromDatabase() {
-        clear(); // Önce mevcut öğeleri temizle
+        logger.info("Loading playlists from database...");
+        clear(); // First clear existing items
 
-        // Veritabanından çalma listelerini yükle
+        // Load playlists from database
         List<Playlist> playlists = playlistDAO.getAll();
 
-        // Koleksiyona ekle
+        // Add to collection
         for (Playlist playlist : playlists) {
             super.add(playlist);
         }
+
+        logger.info("{} playlists loaded", playlists.size());
     }
 
     public List<Playlist> searchByName(String name) {
         if (name == null || name.trim().isEmpty()) {
+            logger.warn("Invalid search term");
             return new ArrayList<>();
         }
+
+        logger.debug("Searching for playlist: {}", name);
 
         List<Playlist> results = new ArrayList<>();
         List<Playlist> allPlaylists = getAll();
@@ -109,26 +155,48 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
             }
         }
 
+        logger.debug("Search result: {} playlists found", results.size());
         return results;
     }
 
     public List<Playlist> getPlaylistsContainingSong(Song song) {
-        return playlistDAO.getPlaylistsContainingSong(song);
+        if (song == null) {
+            logger.warn("Invalid song");
+            return new ArrayList<>();
+        }
+
+        logger.debug("Getting playlists containing song: {}", song.getName());
+        return playlistDAO.getPlaylistsContainingSong(String.valueOf(song));
     }
 
     public void addSongToPlaylist(String playlistId, String songId) {
+        if (playlistId == null || playlistId.isEmpty() || songId == null || songId.isEmpty()) {
+            logger.warn("Geçersiz çalma listesi veya şarkı ID'si");
+            return;
+        }
+
+        logger.info("Çalma listesine şarkı ekleniyor. Playlist ID: {}, Song ID: {}", playlistId, songId);
         playlistDAO.addSongToPlaylist(playlistId, songId);
     }
 
     public void removeSongFromPlaylist(String playlistId, String songId) {
+        if (playlistId == null || playlistId.isEmpty() || songId == null || songId.isEmpty()) {
+            logger.warn("Geçersiz çalma listesi veya şarkı ID'si");
+            return;
+        }
+
+        logger.info("Çalma listesinden şarkı kaldırılıyor. Playlist ID: {}, Song ID: {}", playlistId, songId);
         playlistDAO.removeSongFromPlaylist(playlistId, songId);
     }
 
     public boolean saveToFile(String filePath) {
+        logger.debug("SQLite kullanıldığı için dosyaya kaydetmeye gerek yok");
         return true;
     }
 
     public boolean loadFromFile(String filePath) {
+        logger.info("Tüm çalma listeleri veritabanından yükleniyor");
+
         List<Playlist> playlists = playlistDAO.getAll();
 
         clear();
@@ -137,6 +205,7 @@ public class PlaylistCollection extends MusicCollectionManager<Playlist> {
             add(playlist);
         }
 
+        logger.info("{} çalma listesi yüklendi", playlists.size());
         return !playlists.isEmpty();
     }
 }

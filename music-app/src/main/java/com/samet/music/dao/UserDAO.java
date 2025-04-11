@@ -1,137 +1,362 @@
 package com.samet.music.dao;
 
-import com.samet.music.util.DatabaseUtil;
+import com.samet.music.model.User;
+import com.samet.music.db.DatabaseConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.HashMap;
+import java.sql.PreparedStatement;
 
 /**
- * Data Access Object for user operations
+ * Kullanıcı veritabanı işlemleri için DAO
  */
-public class UserDAO {
-    private static final Object LOCK = new Object();
+public class UserDAO extends BaseDAO<User> {
+    private static final Logger logger = LoggerFactory.getLogger(UserDAO.class);
+
+    // SQL queries
+    private static final String SQL_SELECT_BY_ID = "SELECT * FROM users WHERE id = ?";
+    private static final String SQL_SELECT_ALL = "SELECT * FROM users";
+    private static final String SQL_INSERT = "INSERT INTO users (id, username, password) VALUES (?, ?, ?)";
+    private static final String SQL_UPDATE = "UPDATE users SET username = ?, password = ? WHERE id = ?";
+    private static final String SQL_DELETE = "DELETE FROM users WHERE id = ?";
+
+    // Singleton instance
+    private static volatile UserDAO instance;
+
+    // Ensure dbConnection is defined
+    private final DatabaseConnection dbConnection;
 
     /**
-     * Create users table if not exists
+     * Constructor
      */
-    public void createTable() {
-        synchronized (LOCK) {
-
-            String sql = "CREATE TABLE IF NOT EXISTS users (" +
-                    "username TEXT PRIMARY KEY, " +
-                    "password TEXT NOT NULL)";
-
-            try (Connection conn = DatabaseUtil.getConnection();
-                 Statement stmt = conn.createStatement()) {
-
-                stmt.execute(sql);
-                System.out.println("Users table created or already exists.");
-
-            } catch (SQLException e) {
-                System.err.println("Error creating users table: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
+    public UserDAO(DatabaseConnection dbConnection) {
+        super(dbConnection);
+        this.dbConnection = dbConnection;
     }
 
-    public boolean saveUser(String username, String password) {
-        synchronized (LOCK) {
-
-            String sql = "INSERT OR REPLACE INTO users (username, password) VALUES (?, ?)";
-
-            try (Connection conn = DatabaseUtil.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-                pstmt.setString(1, username);
-                pstmt.setString(2, password);
-
-                int affected = pstmt.executeUpdate();
-                return affected > 0;
-
-            } catch (SQLException e) {
-                System.err.println("Error saving user: " + e.getMessage());
-                e.printStackTrace();
-                return false;
-            }
+    /**
+     * Returns the singleton instance
+     */
+    public static synchronized UserDAO getInstance(DatabaseConnection dbConnection) {
+        if (instance == null) {
+            instance = new UserDAO(dbConnection);
         }
+        return instance;
     }
 
-    public String getPassword(String username) {
-        synchronized (LOCK) {
+    @Override
+    public boolean insert(User user) {
+        if (user == null) {
+            logger.warn("Cannot insert null user");
+            return false;
+        }
 
-            String sql = "SELECT password FROM users WHERE username = ?";
-
-            try (Connection conn = DatabaseUtil.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-                pstmt.setString(1, username);
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return rs.getString("password");
-                    }
+        String sql = "INSERT INTO users (id, username, password) VALUES (?, ?, ?)";
+        try {
+            return dbConnection.executeUpdate(sql, stmt -> {
+                try {
+                    stmt.setString(1, user.getId());
+                    stmt.setString(2, user.getUsername());
+                    stmt.setString(3, user.getPassword());
+                    return stmt.executeUpdate() > 0;
+                } catch (SQLException e) {
+                    logger.error("Error inserting user: {}", e.getMessage());
+                    return false;
                 }
+            });
+        } catch (Exception e) {
+            logger.error("Error executing insert: {}", e.getMessage());
+            return false;
+        }
+    }
 
-            } catch (SQLException e) {
-                System.err.println("Error getting user: " + e.getMessage());
-                e.printStackTrace();
-            }
-
+    @Override
+    public User getById(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            logger.warn("Cannot get user with null or empty ID");
+            return null;
+        }
+        
+        try {
+            return querySingle(SQL_SELECT_BY_ID, rs -> {
+                try {
+                    if (rs.next()) {
+                        return mapUser(rs);
+                    }
+                    return null;
+                } catch (SQLException e) {
+                    logger.error("Error mapping user: {}", e.getMessage());
+                    return null;
+                }
+            }, id);
+        } catch (Exception e) {
+            logger.error("Error getting user by ID: {}", e.getMessage());
             return null;
         }
     }
 
+    @Override
+    public List<User> getAll() {
+        return queryList(SQL_SELECT_ALL, this::mapUser);
+    }
+
+    @Override
+    public boolean update(User user) {
+        if (user == null || user.getId() == null || user.getId().trim().isEmpty()) {
+            return false;
+        }
+
+        String sql = "UPDATE users SET username = ?, password = ? WHERE id = ?";
+        try {
+            return dbConnection.executeUpdate(sql, stmt -> {
+                try {
+                    stmt.setString(1, user.getUsername());
+                    stmt.setString(2, user.getPassword());
+                    stmt.setString(3, user.getId());
+                    return stmt.executeUpdate() > 0;
+                } catch (SQLException e) {
+                    logger.error("Error updating user: {}", e.getMessage());
+                    return false;
+                }
+            });
+        } catch (Exception e) {
+            logger.error("Error executing update: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public boolean delete(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            return false;
+        }
+
+        String sql = "DELETE FROM users WHERE id = ?";
+        try {
+            return dbConnection.executeUpdate(sql, stmt -> {
+                try {
+                    stmt.setString(1, id);
+                    return stmt.executeUpdate() > 0;
+                } catch (SQLException e) {
+                    logger.error("Error deleting user: {}", e.getMessage());
+                    return false;
+                }
+            });
+        } catch (Exception e) {
+            logger.error("Error executing delete: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Kullanıcı tablosunun varlığını kontrol eder, yoksa oluşturur
+     */
+    @Override
+    public void createTable() {
+        logger.debug("Kullanıcı tablosu oluşturuluyor...");
+
+        String sql = "CREATE TABLE IF NOT EXISTS users (" +
+                "id TEXT PRIMARY KEY, " +
+                "username TEXT UNIQUE NOT NULL, " +
+                "password TEXT NOT NULL)";
+
+        try {
+            dbConnection.executeUpdate(sql, stmt -> {
+                try {
+                    stmt.execute();
+                    logger.info("Kullanıcı tablosu oluşturuldu veya zaten var");
+                    return true;
+                } catch (SQLException e) {
+                    logger.error("Error creating users table: {}", e.getMessage());
+                    return false;
+                }
+            });
+        } catch (Exception e) {
+            logger.error("Error executing createTable: {}", e.getMessage());
+            throw new RuntimeException("Failed to create users table", e);
+        }
+    }
+
+    /**
+     * Kullanıcı ekler veya günceller
+     * @param username Kullanıcı adı
+     * @param password Şifre
+     * @return İşlem başarılı ise true
+     */
+    public boolean saveUser(String username, String password) {
+        if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
+            logger.warn("Geçersiz kullanıcı adı veya şifre");
+            return false;
+        }
+
+        if (userExists(username)) {
+            logger.warn("Bu kullanıcı adı zaten kullanımda: {}", username);
+            return false;
+        }
+
+        logger.debug("Kullanıcı kaydediliyor: {}", username);
+
+        // Generate a random ID for the user
+        String id = java.util.UUID.randomUUID().toString();
+        
+        try {
+            return insert(new User(id, username, password));
+        } catch (Exception e) {
+            logger.error("Error executing saveUser: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Kullanıcının şifresini getirir
+     * @param username Kullanıcı adı
+     * @return Şifre, kullanıcı bulunamazsa null
+     */
+    public String getPassword(String username) {
+        if (username == null || username.isEmpty()) {
+            logger.warn("Geçersiz kullanıcı adı");
+            return null;
+        }
+
+        logger.debug("Kullanıcı şifresi getiriliyor: {}", username);
+
+        String sql = "SELECT password FROM users WHERE username = ?";
+        try {
+            ResultSet rs = dbConnection.executeQuery(sql, stmt -> {
+                try {
+                    stmt.setString(1, username);
+                    return stmt.executeQuery();
+                } catch (SQLException e) {
+                    logger.error("Error executing query: {}", e.getMessage());
+                    return null;
+                }
+            });
+            
+            if (rs != null) {
+                try {
+                    return rs.next() ? rs.getString("password") : null;
+                } catch (SQLException e) {
+                    logger.error("Error reading result set: {}", e.getMessage());
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            logger.error("Error executing getPassword: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Kullanıcının var olup olmadığını kontrol eder
+     * @param username Kullanıcı adı
+     * @return Kullanıcı varsa true
+     */
     public boolean userExists(String username) {
-        synchronized (LOCK) {
-
-            return getPassword(username) != null;
+        if (username == null || username.isEmpty()) {
+            logger.warn("Geçersiz kullanıcı adı");
+            return false;
         }
+
+        return getPassword(username) != null;
     }
 
+    /**
+     * Kullanıcıyı siler
+     * @param username Kullanıcı adı
+     * @return İşlem başarılı ise true
+     */
     public boolean deleteUser(String username) {
-        synchronized (LOCK) {
+        if (username == null || username.isEmpty()) {
+            logger.warn("Geçersiz kullanıcı adı");
+            return false;
+        }
 
-            String sql = "DELETE FROM users WHERE username = ?";
+        logger.debug("Kullanıcı siliniyor: {}", username);
 
-            try (Connection conn = DatabaseUtil.getConnection();
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-                pstmt.setString(1, username);
-                int affected = pstmt.executeUpdate();
-                return affected > 0;
-
-            } catch (SQLException e) {
-                System.err.println("Error deleting user: " + e.getMessage());
-                e.printStackTrace();
-                return false;
-            }
+        String sql = "DELETE FROM users WHERE username = ?";
+        try {
+            return dbConnection.executeUpdate(sql, stmt -> {
+                try {
+                    stmt.setString(1, username);
+                    return stmt.executeUpdate() > 0;
+                } catch (SQLException e) {
+                    logger.error("Error deleting user: {}", e.getMessage());
+                    return false;
+                }
+            });
+        } catch (Exception e) {
+            logger.error("Error executing deleteUser: {}", e.getMessage());
+            return false;
         }
     }
 
+    /**
+     * Tüm kullanıcıları getirir
+     * @return Kullanıcı adı -> şifre eşleşmesi
+     */
     public Map<String, String> getAllUsers() {
-        synchronized (LOCK) {
+        logger.debug("Tüm kullanıcılar getiriliyor");
+        Map<String, String> users = new HashMap<>();
 
-            Map<String, String> users = new HashMap<>();
         String sql = "SELECT username, password FROM users";
-
-        try (Connection conn = DatabaseUtil.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                users.put(rs.getString("username"), rs.getString("password"));
+        try {
+            ResultSet rs = dbConnection.executeQuery(sql, stmt -> {
+                try {
+                    return stmt.executeQuery();
+                } catch (SQLException e) {
+                    logger.error("Error executing query: {}", e.getMessage());
+                    return null;
+                }
+            });
+            
+            if (rs != null) {
+                try {
+                    while (rs.next()) {
+                        users.put(rs.getString("username"), rs.getString("password"));
+                    }
+                } catch (SQLException e) {
+                    logger.error("Error reading results: {}", e.getMessage());
+                }
             }
-
-        } catch (SQLException e) {
-            System.err.println("Error getting all users: " + e.getMessage());
-            e.printStackTrace();
+        } catch (Exception e) {
+            logger.error("Error executing getAllUsers: {}", e.getMessage());
         }
-
         return users;
-        }
+    }
+
+    /**
+     * Maps ResultSet to User object
+     */
+    private User mapUser(ResultSet rs) throws SQLException {
+        return new User(
+            rs.getString("id"),
+            rs.getString("username"),
+            rs.getString("password")
+        );
+    }
+
+    @Override
+    protected void setCreateStatementParameters(PreparedStatement stmt, User user) throws SQLException {
+        stmt.setString(1, user.getId());
+        stmt.setString(2, user.getUsername());
+        stmt.setString(3, user.getPassword());
+    }
+
+    @Override
+    protected User mapResultSetToEntity(ResultSet rs) throws SQLException {
+        return mapUser(rs);
+    }
+
+    @Override
+    protected void setUpdateStatementParameters(PreparedStatement stmt, User user) throws SQLException {
+        stmt.setString(1, user.getUsername());
+        stmt.setString(2, user.getPassword());
+        stmt.setString(3, user.getId());
     }
 }
