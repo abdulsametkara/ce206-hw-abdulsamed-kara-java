@@ -1,134 +1,105 @@
-services:
-  music-app:
-    # Uygulamanız için image veya build parametresi eklenmeli
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Veya hazır bir image kullanıyorsanız:
-    # image: your-docker-registry/music-app:latest
-    ports:
-     - "6080:6080"  # NoVNC için
-     - "5901:5901"  # VNC için
-     - "8080:8080"  # Uygulama portu için
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    # Prometheus için metrik endpointlerini açma
-    labels:
-      - "prometheus.scrape=true"
-      - "prometheus.port=8080"
-    networks:
-      - music-network
+version: '3.8'
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:21.1.1  # Keycloak için image belirtildi
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: musicapp-postgres
+    restart: unless-stopped
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: musicapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Music Application
+  app:
+    build: .
+    container_name: musicapp
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: musicapp
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+
+  # Keycloak for authentication
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    container_name: musicapp-keycloak
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_HEALTH_ENABLED: true
     ports:
       - "8180:8080"
-    depends_on:
-      - keycloak-db
-    command: start-dev
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - music-network
-
-  keycloak-db:
-    image: postgres:14
-    environment:
-      - POSTGRES_DB=keycloak
-      - POSTGRES_USER=keycloak
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - keycloak-db-data:/var/lib/postgresql/data
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - music-network
-
-  # Prometheus - Metrik Toplama
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - ./prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
+      - start-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v2.44.0
+    container_name: musicapp-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
-    networks:
-      - music-network
-    restart: unless-stopped
+    depends_on:
+      - app
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.enable-lifecycle
 
-  # Grafana - Görselleştirme
+  # Grafana for visualization
   grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+    image: grafana/grafana:10.0.3
+    container_name: musicapp-grafana
+    restart: unless-stopped
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
       - "3000:3000"
-    networks:
-      - music-network
-    restart: unless-stopped
     depends_on:
       - prometheus
 
-  # Loki - Log Toplama
-  loki:
-    image: grafana/loki:latest
-    container_name: loki
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./loki:/etc/loki
-      - loki_data:/loki
-    command: -config.file=/etc/loki/loki-config.yml
-    networks:
-      - music-network
-    restart: unless-stopped
-
-  # Promtail - Log İletimi
-  promtail:
-    image: grafana/promtail:latest
-    container_name: promtail
-    volumes:
-      - ./promtail:/etc/promtail
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers
-    command: -config.file=/etc/promtail/promtail-config.yml
-    networks:
-      - music-network
-    restart: unless-stopped
-    depends_on:
-      - loki
-
 volumes:
-  keycloak-db-data:
+  postgres_data:
   prometheus_data:
-  grafana_data:
-  loki_data:
-
-networks:
-  music-network:
-    driver: bridge
+  grafana_data: 

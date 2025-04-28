@@ -1,298 +1,221 @@
 package com.samet.music.model;
 
 import static org.junit.Assert.*;
-import org.junit.*;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.Before;
+import org.junit.Test;
+
 /**
- * @class ArtistTest
- * @brief Artist sınıfı için test sınıfı
+ * Artist sınıfı için test sınıfı
  */
 public class ArtistTest {
 
     private Artist artist;
+    private Song song1;
+    private Song song2;
     private Album album1;
     private Album album2;
+    private LocalDateTime testTime;
 
-    /**
-     * @brief Her testten önce çalıştırılır
-     */
     @Before
-    public void setUp() throws Exception {
-        // Test için nesneleri oluştur
-        artist = new Artist("Test Artist", "Test Biography");
-        // Album constructor'ı otomatik olarak Artist'e albümü ekleyecek
-        album1 = new Album("Test Album 1", artist, 2021);
-        album2 = new Album("Test Album 2", artist, 2023);
+    public void setUp() {
+        testTime = LocalDateTime.now();
+        artist = new Artist(1, "Test Artist", "Test Bio", 1, testTime);
+        
+        // Test verileri oluşturma
+        song1 = new Song();
+        song1.setId(1);
+        song1.setTitle("Test Song 1");
+        
+        song2 = new Song();
+        song2.setId(2);
+        song2.setTitle("Test Song 2");
+        
+        album1 = new Album();
+        album1.setId(1);
+        album1.setTitle("Test Album 1");
+        
+        album2 = new Album();
+        album2.setId(2);
+        album2.setTitle("Test Album 2");
     }
-
-    /**
-     * @brief Sadece isim parametreli constructor'ı test eder
-     */
+    
     @Test
-    public void testConstructorWithNameOnly() {
-        // Arrange & Act
-        Artist nameOnlyArtist = new Artist("Name Only Artist");
-
-        // Assert
-        assertEquals("Sanatçı adı doğru ayarlanmalı", "Name Only Artist", nameOnlyArtist.getName());
-        assertEquals("Biyografi boş olmalı", "", nameOnlyArtist.getBiography());
-        assertEquals("Albüm listesi boş olarak başlatılmalı", 0, nameOnlyArtist.getAlbums().size());
+    public void testDefaultConstructor() {
+        Artist defaultArtist = new Artist();
+        
+        // Doğrulama
+        assertNotNull("songs listesi null olmamalı", defaultArtist.getSongs());
+        assertTrue("songs listesi boş olmalı", defaultArtist.getSongs().isEmpty());
+        assertNotNull("albums listesi null olmamalı", defaultArtist.getAlbums());
+        assertTrue("albums listesi boş olmalı", defaultArtist.getAlbums().isEmpty());
     }
-
-    /**
-     * @brief İsim ve biyografi parametreli constructor'ı test eder
-     */
+    
     @Test
-    public void testConstructorWithNameAndBiography() {
-        // Assert
-        assertEquals("Sanatçı adı doğru ayarlanmalı", "Test Artist", artist.getName());
-        assertEquals("Biyografi doğru ayarlanmalı", "Test Biography", artist.getBiography());
-
-        // setUp'ta iki albüm oluşturduğumuz için, bu albümler artist'e eklenmiş olmalı
-        assertEquals("Sanatçı 2 albüm içermeli", 2, artist.getAlbums().size());
-        assertTrue("Sanatçı album1'i içermeli", artist.getAlbums().contains(album1));
-        assertTrue("Sanatçı album2'yi içermeli", artist.getAlbums().contains(album2));
+    public void testConstructorWithoutId() {
+        String testName = "New Artist";
+        String testBio = "New Bio";
+        int testUserId = 2;
+        
+        Artist newArtist = new Artist(testName, testBio, testUserId);
+        
+        // Doğrulama
+        assertEquals("İsim doğru olmalı", testName, newArtist.getName());
+        assertEquals("Bio doğru olmalı", testBio, newArtist.getBio());
+        assertEquals("Kullanıcı ID doğru olmalı", testUserId, newArtist.getUserId());
+        assertNotNull("createdAt null olmamalı", newArtist.getCreatedAt());
+        assertNotNull("songs listesi null olmamalı", newArtist.getSongs());
+        assertNotNull("albums listesi null olmamalı", newArtist.getAlbums());
     }
-
-    /**
-     * @brief ID, isim ve biyografi parametreli constructor'ı test eder
-     */
+    
     @Test
-    public void testConstructorWithIdNameAndBiography() {
-        // Arrange & Act
-        String customId = "custom-id-123";
-        Artist idArtist = new Artist(customId, "ID Artist", "Custom ID Biography");
-
-        // Assert
-        assertEquals("Sanatçı adı doğru ayarlanmalı", "ID Artist", idArtist.getName());
-        assertEquals("Biyografi doğru ayarlanmalı", "Custom ID Biography", idArtist.getBiography());
-        assertEquals("Özel ID doğru ayarlanmalı", customId, idArtist.getId());
-        assertEquals("Albüm listesi boş olarak başlatılmalı", 0, idArtist.getAlbums().size());
+    public void testFullConstructor() {
+        // Doğrulama
+        assertEquals("ID doğru olmalı", 1, artist.getId());
+        assertEquals("İsim doğru olmalı", "Test Artist", artist.getName());
+        assertEquals("Bio doğru olmalı", "Test Bio", artist.getBio());
+        assertEquals("Kullanıcı ID doğru olmalı", 1, artist.getUserId());
+        assertEquals("Oluşturma zamanı doğru olmalı", testTime, artist.getCreatedAt());
+        assertNotNull("songs listesi null olmamalı", artist.getSongs());
+        assertNotNull("albums listesi null olmamalı", artist.getAlbums());
     }
-
-    /**
-     * @brief setBiography metodunu test eder
-     */
+    
     @Test
-    public void testSetBiography() {
-        // Act
-        artist.setBiography("Updated Biography");
-
-        // Assert
-        assertEquals("Biyografi güncellenmiş olmalı", "Updated Biography", artist.getBiography());
+    public void testSetAndGetId() {
+        artist.setId(10);
+        assertEquals("ID değeri doğru olmalı", 10, artist.getId());
     }
-
-    /**
-     * @brief addAlbum metodunu test eder
-     */
+    
+    @Test
+    public void testSetAndGetName() {
+        artist.setName("Changed Name");
+        assertEquals("İsim değeri doğru olmalı", "Changed Name", artist.getName());
+    }
+    
+    @Test
+    public void testSetAndGetBio() {
+        artist.setBio("Changed Bio");
+        assertEquals("Bio değeri doğru olmalı", "Changed Bio", artist.getBio());
+    }
+    
+    @Test
+    public void testSetAndGetUserId() {
+        artist.setUserId(5);
+        assertEquals("Kullanıcı ID değeri doğru olmalı", 5, artist.getUserId());
+    }
+    
+    @Test
+    public void testSetAndGetCreatedAt() {
+        LocalDateTime newTime = LocalDateTime.now().plusDays(1);
+        artist.setCreatedAt(newTime);
+        assertEquals("Oluşturma zamanı değeri doğru olmalı", newTime, artist.getCreatedAt());
+    }
+    
+    @Test
+    public void testSetAndGetSongs() {
+        List<Song> songs = new ArrayList<>();
+        songs.add(song1);
+        songs.add(song2);
+        
+        artist.setSongs(songs);
+        
+        // Doğrulama
+        assertEquals("songs listesi doğru olmalı", songs, artist.getSongs());
+        assertEquals("songs listesinde 2 eleman olmalı", 2, artist.getSongs().size());
+    }
+    
+    @Test
+    public void testSetAndGetAlbums() {
+        List<Album> albums = new ArrayList<>();
+        albums.add(album1);
+        albums.add(album2);
+        
+        artist.setAlbums(albums);
+        
+        // Doğrulama
+        assertEquals("albums listesi doğru olmalı", albums, artist.getAlbums());
+        assertEquals("albums listesinde 2 eleman olmalı", 2, artist.getAlbums().size());
+    }
+    
+    @Test
+    public void testAddSong() {
+        // Başlangıçta songs listesi boş
+        assertEquals("Başlangıçta songs listesi boş olmalı", 0, artist.getSongs().size());
+        
+        // Şarkı ekle
+        artist.addSong(song1);
+        
+        // Doğrulama
+        assertEquals("songs listesinde 1 eleman olmalı", 1, artist.getSongs().size());
+        assertEquals("Eklenen şarkı doğru olmalı", song1, artist.getSongs().get(0));
+        
+        // İkinci şarkıyı ekle
+        artist.addSong(song2);
+        
+        // Doğrulama
+        assertEquals("songs listesinde 2 eleman olmalı", 2, artist.getSongs().size());
+        assertEquals("İkinci eklenen şarkı doğru olmalı", song2, artist.getSongs().get(1));
+    }
+    
     @Test
     public void testAddAlbum() {
-        // Arrange
-        Artist newArtist = new Artist("New Artist");
-        Album newAlbum = new Album("New Album", null, 2022);
-
-        // Act
-        newArtist.addAlbum(newAlbum);
-
-        // Assert
-        assertEquals("Sanatçı 1 albüm içermeli", 1, newArtist.getAlbums().size());
-        assertTrue("Sanatçı yeni albümü içermeli", newArtist.getAlbums().contains(newAlbum));
+        // Başlangıçta albums listesi boş
+        assertEquals("Başlangıçta albums listesi boş olmalı", 0, artist.getAlbums().size());
+        
+        // Albüm ekle
+        artist.addAlbum(album1);
+        
+        // Doğrulama
+        assertEquals("albums listesinde 1 eleman olmalı", 1, artist.getAlbums().size());
+        assertEquals("Eklenen albüm doğru olmalı", album1, artist.getAlbums().get(0));
+        
+        // İkinci albümü ekle
+        artist.addAlbum(album2);
+        
+        // Doğrulama
+        assertEquals("albums listesinde 2 eleman olmalı", 2, artist.getAlbums().size());
+        assertEquals("İkinci eklenen albüm doğru olmalı", album2, artist.getAlbums().get(1));
     }
-
-    /**
-     * @brief addAlbum metodunu aynı albümü iki kez ekleyerek test eder
-     */
+    
     @Test
-    public void testAddAlbumTwice() {
-        // Arrange
-        Artist newArtist = new Artist("New Artist");
-        Album newAlbum = new Album("New Album", null, 2022);
-
-        // Act
-        newArtist.addAlbum(newAlbum);
-        newArtist.addAlbum(newAlbum);
-
-        // Assert
-        assertEquals("Sanatçı sadece 1 albüm içermeli", 1, newArtist.getAlbums().size());
+    public void testGetSongCount() {
+        // Başlangıçta şarkı yok
+        assertEquals("Başlangıçta şarkı sayısı 0 olmalı", 0, artist.getSongCount());
+        
+        // Şarkı ekle
+        artist.addSong(song1);
+        assertEquals("Şarkı ekledikten sonra sayı 1 olmalı", 1, artist.getSongCount());
+        
+        // İkinci şarkıyı ekle
+        artist.addSong(song2);
+        assertEquals("İki şarkı ekledikten sonra sayı 2 olmalı", 2, artist.getSongCount());
     }
-
-    /**
-     * @brief removeAlbum metodunu test eder
-     */
+    
     @Test
-    public void testRemoveAlbum() {
-        // Act
-        artist.removeAlbum(album1);
-
-        // Assert
-        assertEquals("Sanatçı 1 albüm içermeli", 1, artist.getAlbums().size());
-        assertFalse("Sanatçı album1'i içermemeli", artist.getAlbums().contains(album1));
-        assertTrue("Sanatçı album2'yi içermeli", artist.getAlbums().contains(album2));
+    public void testGetAlbumCount() {
+        // Başlangıçta albüm yok
+        assertEquals("Başlangıçta albüm sayısı 0 olmalı", 0, artist.getAlbumCount());
+        
+        // Albüm ekle
+        artist.addAlbum(album1);
+        assertEquals("Albüm ekledikten sonra sayı 1 olmalı", 1, artist.getAlbumCount());
+        
+        // İkinci albümü ekle
+        artist.addAlbum(album2);
+        assertEquals("İki albüm ekledikten sonra sayı 2 olmalı", 2, artist.getAlbumCount());
     }
-
-    /**
-     * @brief removeAlbum metodunu sanatçıya ait olmayan bir albümle test eder
-     */
-    @Test
-    public void testRemoveNonExistingAlbum() {
-        // Arrange
-        Artist otherArtist = new Artist("Other Artist");
-        Album otherAlbum = new Album("Other Album", otherArtist, 2020);
-
-        // Act - Remove an album that doesn't belong to the artist
-        artist.removeAlbum(otherAlbum);
-
-        // Assert - The artist should still have its original albums
-        assertEquals("Sanatçı hala 2 albüm içermeli", 2, artist.getAlbums().size());
-        assertTrue("Sanatçı album1'i içermeli", artist.getAlbums().contains(album1));
-        assertTrue("Sanatçı album2'yi içermeli", artist.getAlbums().contains(album2));
-    }
-
-    /**
-     * @brief getAlbums metodunun kopyalama özelliğini test eder
-     * (Dış değişikliklerden korunma)
-     */
-    @Test
-    public void testGetAlbumsReturnsCopy() {
-        // Arrange
-        Artist newArtist = new Artist("New Artist");
-        Album newAlbum = new Album("New Album", null, 2022);
-        newArtist.addAlbum(newAlbum);
-
-        // Act - Dönen listeyi değiştirmeye çalış
-        List<Album> albums = newArtist.getAlbums();
-        albums.clear();
-
-        // Assert
-        assertEquals("Orijinal albüm listesi değişmemeli", 1, newArtist.getAlbums().size());
-        assertTrue("Orijinal albüm listesi newAlbum'ü içermeli", newArtist.getAlbums().contains(newAlbum));
-    }
-
-    /**
-     * @brief getId metodunu test eder - özel ID olmadığında
-     */
-    @Test
-    public void testGetIdWithoutOriginalId() {
-        // Assert
-        assertNotNull("ID null olmamalı", artist.getId());
-        // BaseEntity'den gelen ID genellikle UUID formatında olacaktır
-    }
-
-    /**
-     * @brief getId metodunu test eder - özel ID olduğunda
-     */
-    @Test
-    public void testGetIdWithOriginalId() {
-        // Arrange
-        String customId = "db-id-456";
-        artist.setOriginalId(customId);
-
-        // Assert
-        assertEquals("Özel ID dönmeli", customId, artist.getId());
-    }
-
-    /**
-     * @brief setOriginalId metodunu test eder
-     */
-    @Test
-    public void testSetOriginalId() {
-        // Arrange
-        String customId = "custom-original-id";
-
-        // Act
-        artist.setOriginalId(customId);
-
-        // Assert
-        assertEquals("Özel ID doğru ayarlanmalı", customId, artist.getId());
-    }
-
-    /**
-     * @brief toString metodunu test eder
-     */
+    
     @Test
     public void testToString() {
-        // Act
-        String artistString = artist.toString();
-
-        // Assert
-        assertEquals("toString doğru formatlanmalı",
-                "Test Artist (2 albums)", artistString);
+        // Test için şarkı ve albüm ekleyelim
+        artist.addSong(song1);
+        artist.addAlbum(album1);
+        
+        String expected = "Artist{id=1, name='Test Artist', songCount=1, albumCount=1}";
+        assertEquals("toString metodu doğru çıktı vermeli", expected, artist.toString());
     }
-
-    /**
-     * @brief equals metodunu test eder - aynı ID'ye sahip sanatçılar
-     */
-    @Test
-    public void testEqualsWithSameId() {
-        // Arrange
-        String customId = "same-id";
-        Artist artist1 = new Artist(customId, "Artist 1", "Bio 1");
-        Artist artist2 = new Artist(customId, "Artist 2", "Bio 2");
-
-        // Assert
-        assertTrue("Aynı ID'ye sahip sanatçılar eşit olmalı", artist1.equals(artist2));
-        assertTrue("equals metodu simetrik olmalı", artist2.equals(artist1));
-    }
-
-    /**
-     * @brief equals metodunu test eder - farklı ID'ye sahip sanatçılar
-     */
-    @Test
-    public void testEqualsWithDifferentId() {
-        // Arrange
-        Artist artist1 = new Artist("id1", "Artist 1", "Bio 1");
-        Artist artist2 = new Artist("id2", "Artist 1", "Bio 1");
-
-        // Assert
-        assertFalse("Farklı ID'ye sahip sanatçılar eşit olmamalı", artist1.equals(artist2));
-    }
-
-    /**
-     * @brief equals metodunu test eder - aynı nesne
-     */
-    @Test
-    public void testEqualsWithSameObject() {
-        // Assert
-        assertTrue("Aynı nesne kendisine eşit olmalı", artist.equals(artist));
-    }
-
-    /**
-     * @brief equals metodunu test eder - null ile
-     */
-    @Test
-    public void testEqualsWithNull() {
-        // Assert
-        assertFalse("Herhangi bir nesne null'a eşit olmamalı", artist.equals(null));
-    }
-
-    /**
-     * @brief equals metodunu test eder - farklı sınıftan nesne ile
-     */
-    @Test
-    public void testEqualsWithDifferentClass() {
-        // Assert
-        assertFalse("Farklı sınıftan nesneler eşit olmamalı", artist.equals(new Object()));
-    }
-
-    /**
-     * @brief hashCode metodunu test eder
-     */
-    @Test
-    public void testHashCode() {
-        // Arrange
-        String customId = "hash-id";
-        Artist artist1 = new Artist(customId, "Artist 1", "Bio 1");
-        Artist artist2 = new Artist(customId, "Artist 2", "Bio 2");
-
-        // Assert
-        assertEquals("Aynı ID'ye sahip sanatçıların hashCode'ları eşit olmalı",
-                artist1.hashCode(), artist2.hashCode());
-
-        // ID değişirse hashCode da değişmeli
-        artist1.setOriginalId("different-id");
-        assertNotEquals("Farklı ID'ye sahip sanatçıların hashCode'ları farklı olmalı",
-                artist1.hashCode(), artist2.hashCode());
-    }
-}
+} 

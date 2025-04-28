@@ -1,224 +1,309 @@
 package com.samet.music.model;
 
 import static org.junit.Assert.*;
-import org.junit.*;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.Before;
+import org.junit.Test;
+
 /**
- * @class AlbumTest
- * @brief Test class for Album class
+ * Album sınıfı için test sınıfı
  */
 public class AlbumTest {
 
     private Album album;
-    private Artist artist;
     private Song song1;
     private Song song2;
+    private Song song3;
+    private LocalDateTime testTime;
 
-    /**
-     * @brief Runs before each test
-     */
     @Before
-    public void setUp() throws Exception {
-        // Create objects for testing
-        artist = new Artist("Test Artist", "Test Biography");
-        album = new Album("Test Album", artist, 2023);
-        song1 = new Song("Test Song 1", artist, 180);
-        song2 = new Song("Test Song 2", artist, 240);
+    public void setUp() {
+        testTime = LocalDateTime.now();
+        album = new Album(1, "Test Album", "Test Artist", 2023, "Rock", 1, testTime);
+        
+        // Test şarkıları oluştur
+        song1 = new Song();
+        song1.setId(1);
+        song1.setTitle("Test Song 1");
+        song1.setDuration(180); // 3 dakika
+        
+        song2 = new Song();
+        song2.setId(2);
+        song2.setTitle("Test Song 2");
+        song2.setDuration(240); // 4 dakika
+        
+        song3 = new Song();
+        song3.setId(3);
+        song3.setTitle("Test Song 3");
+        song3.setDuration(300); // 5 dakika
     }
-
-    /**
-     * @brief Tests the constructor
-     */
+    
     @Test
-    public void testConstructor() {
-        // Check directly accessible properties
-        assertEquals("Album name should be set correctly", "Test Album", album.getName());
-        assertEquals("Artist should be set correctly", artist, album.getArtist());
-        assertEquals("Release year should be set correctly", 2023, album.getReleaseYear());
-        assertEquals("Genre default value should be 'Unknown'", "Unknown", album.getGenre());
-        assertEquals("Song list should be initialized empty", 0, album.getSongs().size());
-
-        // The album should be in the artist's albums
-        assertTrue("New album should be in artist's albums", artist.getAlbums().contains(album));
+    public void testDefaultConstructor() {
+        Album defaultAlbum = new Album();
+        
+        // Doğrulama
+        assertNotNull("songs listesi null olmamalı", defaultAlbum.getSongs());
+        assertTrue("songs listesi boş olmalı", defaultAlbum.getSongs().isEmpty());
     }
-
-    /**
-     * @brief Tests constructor with null artist
-     */
+    
     @Test
-    public void testConstructorWithNullArtist() {
-        // Arrange & Act
-        Album nullArtistAlbum = new Album("No Artist Album", null, 2020);
-
-        // Assert
-        assertNull("Sanatçı null olmalı", nullArtistAlbum.getArtist());
-        assertEquals("Album adı doğru ayarlanmalı", "No Artist Album", nullArtistAlbum.getName());
-        assertEquals("Yayın yılı doğru ayarlanmalı", 2020, nullArtistAlbum.getReleaseYear());
+    public void testConstructorWithoutId() {
+        String testTitle = "New Album";
+        String testArtist = "New Artist";
+        int testYear = 2022;
+        String testGenre = "Pop";
+        int testUserId = 2;
+        
+        Album newAlbum = new Album(testTitle, testArtist, testYear, testGenre, testUserId);
+        
+        // Doğrulama
+        assertEquals("Başlık doğru olmalı", testTitle, newAlbum.getTitle());
+        assertEquals("Sanatçı doğru olmalı", testArtist, newAlbum.getArtist());
+        assertEquals("Yıl doğru olmalı", Integer.valueOf(testYear), newAlbum.getYear());
+        assertEquals("Tür doğru olmalı", testGenre, newAlbum.getGenre());
+        assertEquals("Kullanıcı ID doğru olmalı", Integer.valueOf(testUserId), newAlbum.getUserId());
+        assertNotNull("songs listesi null olmamalı", newAlbum.getSongs());
+        assertTrue("songs listesi boş olmalı", newAlbum.getSongs().isEmpty());
     }
-
-    /**
-     * @brief Tests setArtist method
-     */
+    
     @Test
-    public void testSetArtist() {
-        // Arrange
-        Artist newArtist = new Artist("New Artist", "New Biography");
-
-        // Act
-        album.setArtist(newArtist);
-
-        // Assert
-        assertEquals("Yeni sanatçı ayarlanmalı", newArtist, album.getArtist());
-        assertFalse("Eski sanatçının albümleri arasında bu albüm olmamalı", artist.getAlbums().contains(album));
-        assertTrue("Yeni sanatçının albümleri arasında bu albüm olmalı", newArtist.getAlbums().contains(album));
+    public void testFullConstructor() {
+        // Doğrulama
+        assertEquals("ID doğru olmalı", Integer.valueOf(1), album.getId());
+        assertEquals("Başlık doğru olmalı", "Test Album", album.getTitle());
+        assertEquals("Sanatçı doğru olmalı", "Test Artist", album.getArtist());
+        assertEquals("Yıl doğru olmalı", Integer.valueOf(2023), album.getYear());
+        assertEquals("Tür doğru olmalı", "Rock", album.getGenre());
+        assertEquals("Kullanıcı ID doğru olmalı", Integer.valueOf(1), album.getUserId());
+        assertEquals("Oluşturma zamanı doğru olmalı", testTime, album.getCreatedAt());
+        assertNotNull("songs listesi null olmamalı", album.getSongs());
+        assertTrue("songs listesi boş olmalı", album.getSongs().isEmpty());
     }
-
-    /**
-     * @brief Tests setArtist method with null value
-     */
+    
     @Test
-    public void testSetArtistNull() {
-        // Act
-        album.setArtist(null);
-
-        // Assert
-        assertNull("Sanatçı null olmalı", album.getArtist());
-        assertFalse("Eski sanatçının albümleri arasında bu albüm olmamalı", artist.getAlbums().contains(album));
+    public void testSetAndGetId() {
+        album.setId(10);
+        assertEquals("ID değeri doğru olmalı", Integer.valueOf(10), album.getId());
     }
-
-    /**
-     * @brief Tests setReleaseYear method
-     */
+    
     @Test
-    public void testSetReleaseYear() {
-        // Act
-        album.setReleaseYear(2022);
-
-        // Assert
-        assertEquals("Yayın yılı değişmeli", 2022, album.getReleaseYear());
+    public void testSetAndGetTitle() {
+        album.setTitle("Changed Title");
+        assertEquals("Başlık değeri doğru olmalı", "Changed Title", album.getTitle());
     }
-
-    /**
-     * @brief Tests setGenre method
-     */
+    
     @Test
-    public void testSetGenre() {
-        // Act
-        album.setGenre("Rock");
-
-        // Assert
-        assertEquals("Genre değişmeli", "Rock", album.getGenre());
+    public void testSetAndGetArtist() {
+        album.setArtist("Changed Artist");
+        assertEquals("Sanatçı değeri doğru olmalı", "Changed Artist", album.getArtist());
     }
-
-    /**
-     * @brief Tests addSong method
-     */
+    
+    @Test
+    public void testSetAndGetYear() {
+        album.setYear(2024);
+        assertEquals("Yıl değeri doğru olmalı", Integer.valueOf(2024), album.getYear());
+    }
+    
+    @Test
+    public void testSetAndGetGenre() {
+        album.setGenre("Jazz");
+        assertEquals("Tür değeri doğru olmalı", "Jazz", album.getGenre());
+    }
+    
+    @Test
+    public void testSetAndGetUserId() {
+        album.setUserId(5);
+        assertEquals("Kullanıcı ID değeri doğru olmalı", Integer.valueOf(5), album.getUserId());
+    }
+    
+    @Test
+    public void testSetAndGetCreatedAt() {
+        LocalDateTime newTime = LocalDateTime.now().plusDays(1);
+        album.setCreatedAt(newTime);
+        assertEquals("Oluşturma zamanı değeri doğru olmalı", newTime, album.getCreatedAt());
+    }
+    
+    @Test
+    public void testSetAndGetSongs() {
+        List<Song> songs = new ArrayList<>();
+        songs.add(song1);
+        songs.add(song2);
+        
+        album.setSongs(songs);
+        
+        // Doğrulama
+        assertEquals("songs listesi doğru olmalı", songs, album.getSongs());
+        assertEquals("songs listesinde 2 eleman olmalı", 2, album.getSongs().size());
+    }
+    
     @Test
     public void testAddSong() {
-        // Act
+        // Başlangıçta songs listesi boş
+        assertEquals("Başlangıçta songs listesi boş olmalı", 0, album.getSongs().size());
+        
+        // Şarkı ekle
         album.addSong(song1);
-
-        // Assert
-        assertEquals("Albüm 1 şarkı içermeli", 1, album.getSongs().size());
-        assertTrue("Albüm song1'i içermeli", album.getSongs().contains(song1));
-        assertEquals("Song1'in albümü bu albüm olmalı", album, song1.getAlbum());
+        
+        // Doğrulama
+        assertEquals("songs listesinde 1 eleman olmalı", 1, album.getSongs().size());
+        assertEquals("Eklenen şarkı doğru olmalı", song1, album.getSongs().get(0));
+        
+        // İkinci şarkıyı ekle
+        album.addSong(song2);
+        
+        // Doğrulama
+        assertEquals("songs listesinde 2 eleman olmalı", 2, album.getSongs().size());
+        assertEquals("İkinci eklenen şarkı doğru olmalı", song2, album.getSongs().get(1));
     }
-
-    /**
-     * @brief Tests addSong method with the same song twice
-     */
+    
     @Test
-    public void testAddSongTwice() {
-        // Act
+    public void testAddSongWithNullList() {
+        // songs listesini null yap
+        album.setSongs(null);
+        
+        // Şarkı ekle
         album.addSong(song1);
-        album.addSong(song1);
-
-        // Assert
-        assertEquals("Albüm sadece 1 şarkı içermeli", 1, album.getSongs().size());
+        
+        // Doğrulama - yeni liste oluşturulmalı ve şarkı eklenmiş olmalı
+        assertNotNull("songs listesi null olmamalı", album.getSongs());
+        assertEquals("songs listesinde 1 eleman olmalı", 1, album.getSongs().size());
+        assertEquals("Eklenen şarkı doğru olmalı", song1, album.getSongs().get(0));
     }
-
-    /**
-     * @brief Tests removeSong method
-     */
+    
     @Test
     public void testRemoveSong() {
-        // Arrange
+        // Şarkıları ekle
         album.addSong(song1);
         album.addSong(song2);
-
-        // Act
+        assertEquals("Başlangıçta 2 şarkı olmalı", 2, album.getSongs().size());
+        
+        // Şarkı kaldır
         album.removeSong(song1);
-
-        // Assert
-        assertEquals("Albüm 1 şarkı içermeli", 1, album.getSongs().size());
-        assertFalse("Albüm song1'i içermemeli", album.getSongs().contains(song1));
-        assertTrue("Albüm song2'yi içermeli", album.getSongs().contains(song2));
-        assertNull("Song1'in albümü null olmalı", song1.getAlbum());
-        assertEquals("Song2'nin albümü bu albüm olmalı", album, song2.getAlbum());
+        
+        // Doğrulama
+        assertEquals("songs listesinde 1 eleman olmalı", 1, album.getSongs().size());
+        assertEquals("Kalan şarkı doğru olmalı", song2, album.getSongs().get(0));
     }
-
-    /**
-     * @brief Tests removeSong method with a song that is not in the album
-     */
+    
     @Test
-    public void testRemoveNonExistingSong() {
-        // Arrange
-        album.addSong(song1);
-
-        // Act
-        album.removeSong(song2);
-
-        // Assert
-        assertEquals("Albüm hala 1 şarkı içermeli", 1, album.getSongs().size());
-        assertTrue("Albüm song1'i içermeli", album.getSongs().contains(song1));
+    public void testRemoveSongWithNullList() {
+        // songs listesini null yap
+        album.setSongs(null);
+        
+        // Şarkı kaldırmayı dene - hata vermemeli
+        album.removeSong(song1);
     }
-
-    /**
-     * @brief Tests getSongs method's copy feature
-     * (Protection from external modifications)
-     */
+    
     @Test
-    public void testGetSongsReturnsCopy() {
-        // Arrange
+    public void testRemoveSongById() {
+        // Şarkıları ekle
         album.addSong(song1);
-
-        // Act - Try to modify the returned list
-        List<Song> songs = album.getSongs();
-        songs.add(song2);
-
-        // Assert
-        assertEquals("Original song list should not change", 1, album.getSongs().size());
-        assertFalse("Original song list should not contain song2", album.getSongs().contains(song2));
+        album.addSong(song2);
+        album.addSong(song3);
+        assertEquals("Başlangıçta 3 şarkı olmalı", 3, album.getSongs().size());
+        
+        // ID ile şarkı kaldır
+        boolean result = album.removeSongById(2); // song2'yi kaldır
+        
+        // Doğrulama
+        assertTrue("Kaldırma işlemi başarılı olmalı", result);
+        assertEquals("songs listesinde 2 eleman olmalı", 2, album.getSongs().size());
+        assertEquals("İlk kalan şarkı doğru olmalı", song1, album.getSongs().get(0));
+        assertEquals("İkinci kalan şarkı doğru olmalı", song3, album.getSongs().get(1));
     }
-
-    /**
-     * @brief Tests toString method
-     */
+    
+    @Test
+    public void testRemoveSongByIdNotFound() {
+        // Şarkıları ekle
+        album.addSong(song1);
+        album.addSong(song2);
+        
+        // Olmayan bir ID ile şarkı kaldırmayı dene
+        boolean result = album.removeSongById(999);
+        
+        // Doğrulama
+        assertFalse("Olmayan şarkıyı kaldırma başarısız olmalı", result);
+        assertEquals("songs listesinde hala 2 eleman olmalı", 2, album.getSongs().size());
+    }
+    
+    @Test
+    public void testGetSongCount() {
+        // Başlangıçta şarkı yok
+        assertEquals("Başlangıçta şarkı sayısı 0 olmalı", 0, album.getSongCount());
+        
+        // Şarkı ekle
+        album.addSong(song1);
+        assertEquals("Şarkı ekledikten sonra sayı 1 olmalı", 1, album.getSongCount());
+        
+        // İkinci şarkıyı ekle
+        album.addSong(song2);
+        assertEquals("İki şarkı ekledikten sonra sayı 2 olmalı", 2, album.getSongCount());
+    }
+    
+    @Test
+    public void testGetTotalDuration() {
+        // Başlangıçta şarkı yok, toplam süre 0 olmalı
+        assertEquals("Başlangıçta toplam süre 0 olmalı", 0, album.getTotalDuration());
+        
+        // Şarkıları ekle
+        album.addSong(song1); // 180 saniye
+        album.addSong(song2); // 240 saniye
+        album.addSong(song3); // 300 saniye
+        
+        // Doğrulama
+        int expectedDuration = 180 + 240 + 300; // 720 saniye
+        assertEquals("Toplam süre doğru hesaplanmalı", expectedDuration, album.getTotalDuration());
+    }
+    
+    @Test
+    public void testGetFormattedTotalDuration() {
+        // Şarkıları ekle
+        album.addSong(song1); // 180 saniye (3 dakika)
+        album.addSong(song2); // 240 saniye (4 dakika)
+        album.addSong(song3); // 300 saniye (5 dakika)
+        
+        // Toplam: 720 saniye = 12 dakika = 00:12:00
+        String expected = "00:12:00";
+        assertEquals("Biçimlendirilmiş süre doğru olmalı", expected, album.getFormattedTotalDuration());
+    }
+    
+    @Test
+    public void testGetFormattedTotalDurationWithHours() {
+        // Uzun süreli bir şarkı oluştur
+        Song longSong = new Song();
+        longSong.setId(4);
+        longSong.setTitle("Long Song");
+        longSong.setDuration(3665); // 1 saat 1 dakika 5 saniye
+        
+        // Şarkıyı ekle
+        album.addSong(longSong);
+        
+        // Doğrulama
+        String expected = "01:01:05";
+        assertEquals("Biçimlendirilmiş süre saatleri doğru göstermeli", expected, album.getFormattedTotalDuration());
+    }
+    
     @Test
     public void testToString() {
-        // Act
-        String albumString = album.toString();
-
-        // Assert
-        assertEquals("toString should be formatted correctly",
-                "Test Album (2023) by Test Artist", albumString);
+        // Test için şarkı ekleyelim
+        album.addSong(song1);
+        album.addSong(song2);
+        
+        String expected = "Album{id=1, title='Test Album', artist='Test Artist', year=2023, genre='Rock', userId=1, createdAt=" + testTime + ", songsCount=2}";
+        assertEquals("toString metodu doğru çıktı vermeli", expected, album.toString());
     }
-
-    /**
-     * @brief Tests toString method with null artist
-     */
+    
     @Test
-    public void testToStringWithNullArtist() {
-        // Arrange
-        Album nullArtistAlbum = new Album("No Artist Album", null, 2020);
-
-        // Act
-        String albumString = nullArtistAlbum.toString();
-
-        // Assert
-        assertEquals("toString should be formatted correctly with null artist",
-                "No Artist Album (2020) by Unknown Artist", albumString);
+    public void testToStringWithNullSongs() {
+        // songs listesini null yap
+        album.setSongs(null);
+        
+        String expected = "Album{id=1, title='Test Album', artist='Test Artist', year=2023, genre='Rock', userId=1, createdAt=" + testTime + ", songsCount=0}";
+        assertEquals("toString metodu null songs ile doğru çalışmalı", expected, album.toString());
     }
-}
+} 

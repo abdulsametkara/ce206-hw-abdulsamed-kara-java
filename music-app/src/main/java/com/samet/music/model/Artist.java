@@ -1,94 +1,144 @@
 package com.samet.music.model;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents an artist in the music library
+ * Artist model class representing a music artist in the library
  */
-public class Artist extends BaseEntity {
-    private String biography;
+public class Artist {
+    private int id;
+    private String name;
+    private String bio;
+    private int userId;
+    private LocalDateTime createdAt;
+    private List<Song> songs;
     private List<Album> albums;
-    private String originalId; // To store the original ID from database
 
-    public Artist(String name) {
-        super(name);
-        this.biography = "";
+    // Default constructor
+    public Artist() {
+        this.songs = new ArrayList<>();
         this.albums = new ArrayList<>();
     }
 
-    public Artist(String name, String biography) {
-        super(name);
-        this.biography = biography;
+    // Constructor without id and createdAt (for new artists)
+    public Artist(String name, String bio, int userId) {
+        this.name = name;
+        this.bio = bio;
+        this.userId = userId;
+        this.createdAt = LocalDateTime.now();
+        this.songs = new ArrayList<>();
         this.albums = new ArrayList<>();
     }
 
-    /**
-     * Creates an artist with a specific ID (for ID from database)
-     */
-    public Artist(String id, String name, String biography) {
-        super(name);
-        this.originalId = id;
-        this.biography = biography;
+    // Full constructor
+    public Artist(int id, String name, String bio, int userId, LocalDateTime createdAt) {
+        this.id = id;
+        this.name = name;
+        this.bio = bio;
+        this.userId = userId;
+        this.createdAt = createdAt;
+        this.songs = new ArrayList<>();
         this.albums = new ArrayList<>();
     }
 
-    public String getBiography() {
-        return biography;
+    // Getters and Setters
+    public int getId() {
+        return id;
     }
 
-    public void setBiography(String biography) {
-        this.biography = biography;
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public List<Song> getSongs() {
+        return songs;
+    }
+
+    public void setSongs(List<Song> songs) {
+        this.songs = songs;
     }
 
     public List<Album> getAlbums() {
-        return new ArrayList<>(albums); // Return a copy to prevent external modification
+        return albums;
     }
 
+    public void setAlbums(List<Album> albums) {
+        this.albums = albums;
+    }
+
+    /**
+     * Add a song to the artist
+     * @param song the song to add
+     */
+    public void addSong(Song song) {
+        this.songs.add(song);
+    }
+
+    /**
+     * Add an album to the artist
+     * @param album the album to add
+     */
     public void addAlbum(Album album) {
-        if (!albums.contains(album)) {
-            albums.add(album);
-        }
-    }
-
-    public void removeAlbum(Album album) {
-        albums.remove(album);
+        this.albums.add(album);
     }
 
     /**
-     * Returns the artist's ID.
-     * If a special ID has been assigned from the database, uses that.
+     * Get the total number of songs by this artist
+     * @return the number of songs
      */
-    @Override
-    public String getId() {
-        if (originalId != null) {
-            return originalId;
-        }
-        return super.getId();
+    public int getSongCount() {
+        return this.songs.size();
     }
 
     /**
-     * Sets the original ID from database
+     * Get the total number of albums by this artist
+     * @return the number of albums
      */
-    public void setOriginalId(String id) {
-        this.originalId = id;
+    public int getAlbumCount() {
+        return this.albums.size();
     }
 
     @Override
     public String toString() {
-        return getName() + " (" + albums.size() + " albums)";
+        return "Artist{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", songCount=" + getSongCount() +
+                ", albumCount=" + getAlbumCount() +
+                '}';
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        Artist that = (Artist) obj;
-        return getId().equals(that.getId());
-    }
-
-    @Override
-    public int hashCode() {
-        return getId().hashCode();
-    }
-}
+} 

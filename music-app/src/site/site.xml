@@ -6,7 +6,7 @@
 	<skin>
 		<groupId>org.apache.maven.skins</groupId>
 		<artifactId>maven-fluido-skin</artifactId>
-		<version>1.9</version>
+		<version>2.0.1</version>
 	</skin>
 
 	<custom>
@@ -70,7 +70,7 @@
 				<!-- Add more items for other HTML pages if needed -->
 		</menu>
 		
-		<menu name="Document Coverage">
+				<menu name="Document Coverage">
 				<item name="Doxygen Report" href="./doxygen/html/index.html" />
 				<item name="Coverxygen Report" href="./coverxygen/index.html" />
 				<!-- Add more items for other HTML pages if needed -->

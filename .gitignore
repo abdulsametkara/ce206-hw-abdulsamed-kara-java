@@ -964,8 +964,3 @@ coverage*[.json, .xml, .info]
 /music-app/src/site/resources/assets/.gitkeep
 /music-app/src/site/resources/assets
 /music-app/src/site/resources/images/rteu_logo.jpg
-
-assets/badge_branchcoverage.svg
-assets/badge_combined.svg
-assets/badge_linecoverage.svg
-assets/badge_methodcoverage.svg
