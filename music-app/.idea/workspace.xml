@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="c89338f0-f5b6-44e2-a1b0-62cf631d0202" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../assets/badge_branchcoverage.svg" beforeDir="false" afterPath="$PROJECT_DIR$/../assets/badge_branchcoverage.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../assets/badge_combined.svg" beforeDir="false" afterPath="$PROJECT_DIR$/../assets/badge_combined.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../assets/badge_linecoverage.svg" beforeDir="false" afterPath="$PROJECT_DIR$/../assets/badge_linecoverage.svg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../assets/badge_methodcoverage.svg" beforeDir="false" afterPath="$PROJECT_DIR$/../assets/badge_methodcoverage.svg" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 0
+}]]></component>
+  <component name="ProjectId" id="2waCz05ProrzYpvJY53AubsPIAK" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.MusicApp.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "C:/Users/samet/Desktop/ce206-hwn-abdulsamed-kara-java/music-app",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.23774.435" />
+        <option value="bundled-js-predefined-d6986cc7102b-f27c65a3e318-JavaScript-IU-251.23774.435" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c89338f0-f5b6-44e2-a1b0-62cf631d0202" name="Changes" comment="" />
+      <created>1746270555743</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1746270555743</updated>
+      <workItem from="1746270556921" duration="38000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
