@@ -1,164 +1,304 @@
 package com.samet.music.dao;
 
-import com.samet.music.model.Song;
-import com.samet.music.util.DatabaseUtil;
-
 import java.sql.*;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.samet.music.model.Song;
+import com.samet.music.util.DatabaseUtil;
 
-/**
- * Data Access Object for Song entities
- */
 public class SongDAO {
-    private static final Logger logger = LoggerFactory.getLogger(SongDAO.class);
-
-    /**
-     * Create a new song in the database
-     * @param song the song to create
-     * @return the created song with id
-     */
-    public Song create(Song song) {
-        // SQLite desteklemiyor olabilir, alternatif yöntem kullanacağız
-        String insertSql = "INSERT INTO songs (title, artist, album, genre, year, duration, file_path, user_id) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
-        String idSql = "SELECT last_insert_rowid() as id";
+    
+    private Connection connection;
+    
+    public SongDAO() {
+        System.out.println("SongDAO initializing");
         
         try (Connection conn = DatabaseUtil.getConnection()) {
-            // Auto-commit'i devre dışı bırak
-            conn.setAutoCommit(false);
+            System.out.println("Database connection established successfully");
             
-            try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-                pstmt.setString(1, song.getTitle());
-                pstmt.setString(2, song.getArtist());
-                pstmt.setString(3, song.getAlbum());
-                pstmt.setString(4, song.getGenre());
-                pstmt.setInt(5, song.getYear());
-                pstmt.setInt(6, song.getDuration());
-                pstmt.setString(7, song.getFilePath());
-                pstmt.setInt(8, song.getUserId());
-                
-                int affectedRows = pstmt.executeUpdate();
-                
-                if (affectedRows > 0) {
-                    // Son eklenen satırın ID'sini al
-                    try (Statement stmt = conn.createStatement();
-                         ResultSet rs = stmt.executeQuery(idSql)) {
-                        if (rs.next()) {
-                            song.setId(rs.getInt("id"));
-                            conn.commit();
-                            logger.info("Song created successfully with ID: {}", song.getId());
-                            return song;
-                        }
-                    }
-                }
-                
-                conn.rollback();
-                logger.error("Failed to create song, no ID obtained.");
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
+            String sql = "CREATE TABLE IF NOT EXISTS songs (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "title TEXT NOT NULL," +
+                    "artist TEXT NOT NULL," +
+                    "album TEXT NOT NULL," +
+                    "genre TEXT NOT NULL," +
+                    "year INTEGER," +
+                    "duration INTEGER," +
+                    "file_path TEXT," +
+                    "user_id INTEGER," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                    ")";
+                    
+            conn.createStatement().execute(sql);
+            System.out.println("SongDAO: songs table check/creation completed");
+        } catch (SQLException e) {
+            System.err.println("Error initializing database: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Constructor with connection parameter for testing
+     * @param connection database connection
+     */
+    public SongDAO(Connection connection) {
+        this.connection = connection;
+        System.out.println("SongDAO initializing with provided connection");
+    }
+
+    public void addSong(String title, String artist, String album, String genre) {
+        String sql = "INSERT INTO songs(title, artist, album, genre) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, title);
+            pstmt.setString(2, artist);
+            pstmt.setString(3, album);
+            pstmt.setString(4, genre);
+            pstmt.executeUpdate();
+            
+            // Only commit if we're not in auto-commit mode
+            if (conn != null && !conn.getAutoCommit()) {
+                conn.commit();
             }
         } catch (SQLException e) {
-            logger.error("Error creating song", e);
+            e.printStackTrace();
         }
+    }
+
+    public List<String[]> getAllSongs() {
+        List<String[]> songs = new ArrayList<>();
+        String sql = "SELECT title, artist, album, genre FROM songs";
+        try (Connection conn = DatabaseUtil.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                songs.add(new String[]{
+                        rs.getString("title"),
+                        rs.getString("artist"),
+                        rs.getString("album"),
+                        rs.getString("genre")
+                });
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return songs;
+    }
+
+    public void deleteSong(String title, String artist, String album) {
+        String sql = "DELETE FROM songs WHERE title=? AND artist=? AND album=?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, title);
+            pstmt.setString(2, artist);
+            pstmt.setString(3, album);
+            pstmt.executeUpdate();
+            
+            // Only commit if we're not in auto-commit mode
+            if (conn != null && !conn.getAutoCommit()) {
+                conn.commit();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Create a new song
+     * @param song song to create
+     * @return created song
+     */
+    public Song create(Song song) {
+        String sql = "INSERT INTO songs(title, artist, album, genre, year, duration, file_path, user_id, created_at) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean previousAutoCommit = true;
         
-        return null;
+        try {
+            conn = DatabaseUtil.getConnection();
+            
+            // Save the current auto-commit state and set to false for transaction
+            previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            
+            pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            
+            pstmt.setString(1, song.getTitle());
+            pstmt.setString(2, song.getArtist());
+            pstmt.setString(3, song.getAlbum());
+            pstmt.setString(4, song.getGenre());
+            pstmt.setInt(5, song.getYear());
+            pstmt.setInt(6, song.getDuration());
+            pstmt.setString(7, song.getFilePath());
+            pstmt.setInt(8, song.getUserId());
+            pstmt.setTimestamp(9, song.getCreatedAt());
+                
+            int affectedRows = pstmt.executeUpdate();
+                
+            if (affectedRows > 0) {
+                ResultSet generatedKeys = pstmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    song.setId(generatedKeys.getInt(1));
+                    
+                    // Commit transaction
+                    conn.commit();
+                    return song;
+                }
+            }
+            
+            // If we get here, something went wrong
+            conn.rollback();
+            return null;
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            e.printStackTrace();
+            return null;
+        } finally {
+            // Restore original auto-commit state
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(previousAutoCommit);
+                    if (pstmt != null) pstmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     /**
-     * Get a song by id
-     * @param id the song id
-     * @return an Optional containing the song if found
+     * Find song by ID
+     * @param id song ID
+     * @return song
      */
     public Optional<Song> findById(int id) {
         String sql = "SELECT * FROM songs WHERE id = ?";
-        
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
             pstmt.setInt(1, id);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    Song song = mapResultSetToSong(rs);
-                    return Optional.of(song);
+                    return Optional.of(mapResultSetToSong(rs));
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error finding song by ID", e);
+            e.printStackTrace();
         }
         
         return Optional.empty();
     }
 
     /**
-     * Get all songs
-     * @return a list of all songs
+     * Find all songs
+     * @return list of songs
      */
     public List<Song> findAll() {
-        String sql = "SELECT * FROM songs";
         List<Song> songs = new ArrayList<>();
-        
+        String sql = "SELECT * FROM songs";
         try (Connection conn = DatabaseUtil.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            
             while (rs.next()) {
-                Song song = mapResultSetToSong(rs);
-                songs.add(song);
+                songs.add(mapResultSetToSong(rs));
             }
         } catch (SQLException e) {
-            logger.error("Error finding all songs", e);
+            e.printStackTrace();
         }
         
         return songs;
     }
 
     /**
-     * Get all songs for a user
-     * @param userId the user id
-     * @return a list of all songs for the user
+     * Find songs by user ID
+     * @param userId user ID
+     * @return list of songs
      */
     public List<Song> findByUserId(int userId) {
-        String sql = "SELECT * FROM songs WHERE user_id = ?";
         List<Song> songs = new ArrayList<>();
-        
+        String sql = "SELECT * FROM songs WHERE user_id = ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
             pstmt.setInt(1, userId);
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    Song song = mapResultSetToSong(rs);
-                    songs.add(song);
+                    songs.add(mapResultSetToSong(rs));
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error finding songs by user ID", e);
+            e.printStackTrace();
         }
         
         return songs;
     }
 
     /**
-     * Search for songs by various criteria
-     * @param title the title to search for (can be partial)
-     * @param artist the artist to search for (can be partial)
-     * @param album the album to search for (can be partial)
-     * @param genre the genre to search for (can be partial)
-     * @return a list of songs matching the criteria
+     * Song update
+     * @param song song to update
+     * @return update successful or not
+     */
+    public boolean update(Song song) {
+        String sql = "UPDATE songs SET title = ?, artist = ?, album = ?, genre = ?, " +
+                "year = ?, duration = ?, file_path = ? WHERE id = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, song.getTitle());
+            pstmt.setString(2, song.getArtist());
+            pstmt.setString(3, song.getAlbum());
+            pstmt.setString(4, song.getGenre());
+            pstmt.setInt(5, song.getYear());
+            pstmt.setInt(6, song.getDuration());
+            pstmt.setString(7, song.getFilePath());
+            pstmt.setInt(8, song.getId());
+            
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Delete song by ID
+     * @param id song ID to delete
+     * @return deletion successful or not
+     */
+    public boolean delete(int id) {
+        String sql = "DELETE FROM songs WHERE id = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Search songs
+     * @param title title
+     * @param artist artist
+     * @param album album
+     * @param genre genre
+     * @return search results
      */
     public List<Song> search(String title, String artist, String album, String genre) {
+        List<Song> songs = new ArrayList<>();
+        
         StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM songs WHERE 1=1");
         List<Object> params = new ArrayList<>();
         
@@ -182,11 +322,8 @@ public class SongDAO {
             params.add("%" + genre + "%");
         }
         
-        String sql = sqlBuilder.toString();
-        List<Song> songs = new ArrayList<>();
-        
         try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sqlBuilder.toString())) {
             
             for (int i = 0; i < params.size(); i++) {
                 pstmt.setObject(i + 1, params.get(i));
@@ -194,82 +331,44 @@ public class SongDAO {
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    Song song = mapResultSetToSong(rs);
-                    songs.add(song);
+                    songs.add(mapResultSetToSong(rs));
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error searching songs", e);
+            e.printStackTrace();
         }
         
         return songs;
     }
 
     /**
-     * Update a song in the database
-     * @param song the song to update
-     * @return true if the update was successful, false otherwise
+     * Find songs by artist
+     * @param artist artist name
+     * @return list of songs
      */
-    public boolean update(Song song) {
-        String sql = "UPDATE songs SET title = ?, artist = ?, album = ?, genre = ?, " +
-                     "year = ?, duration = ?, file_path = ? WHERE id = ?";
-        
+    public List<Song> findByArtist(String artist) {
+        List<Song> songs = new ArrayList<>();
+        String sql = "SELECT * FROM songs WHERE artist = ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, artist);
             
-            pstmt.setString(1, song.getTitle());
-            pstmt.setString(2, song.getArtist());
-            pstmt.setString(3, song.getAlbum());
-            pstmt.setString(4, song.getGenre());
-            pstmt.setInt(5, song.getYear());
-            pstmt.setInt(6, song.getDuration());
-            pstmt.setString(7, song.getFilePath());
-            pstmt.setInt(8, song.getId());
-            
-            int affectedRows = pstmt.executeUpdate();
-            
-            if (affectedRows > 0) {
-                logger.info("Song updated successfully with ID: {}", song.getId());
-                return true;
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    songs.add(mapResultSetToSong(rs));
+                }
             }
         } catch (SQLException e) {
-            logger.error("Error updating song", e);
+            e.printStackTrace();
         }
         
-        return false;
+        return songs;
     }
 
     /**
-     * Delete a song from the database
-     * @param id the id of the song to delete
-     * @return true if the deletion was successful, false otherwise
-     */
-    public boolean delete(int id) {
-        String sql = "DELETE FROM songs WHERE id = ?";
-        
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setInt(1, id);
-            
-            int affectedRows = pstmt.executeUpdate();
-            
-            if (affectedRows > 0) {
-                logger.info("Song deleted successfully with ID: {}", id);
-                return true;
-            }
-        } catch (SQLException e) {
-            logger.error("Error deleting song", e);
-        }
-        
-        return false;
-    }
-
-    /**
-     * Map a ResultSet to a Song object
-     * @param rs the ResultSet
-     * @return the Song object
-     * @throws SQLException if a database access error occurs
+     * Map ResultSet to Song object
+     * @param rs ResultSet
+     * @return Song object
      */
     public Song mapResultSetToSong(ResultSet rs) throws SQLException {
         Song song = new Song();
@@ -282,39 +381,46 @@ public class SongDAO {
         song.setDuration(rs.getInt("duration"));
         song.setFilePath(rs.getString("file_path"));
         song.setUserId(rs.getInt("user_id"));
-        
-        Timestamp timestamp = rs.getTimestamp("created_at");
-        if (timestamp != null) {
-            song.setCreatedAt(timestamp);
-        }
-        
+        song.setCreatedAt(rs.getTimestamp("created_at"));
         return song;
     }
-    
+
     /**
-     * Find songs by artist name
-     * @param artist the artist name to search for (exact match)
-     * @return a list of songs by the specified artist
+     * Update song information
+     * @param oldTitle original title for identifying the song
+     * @param oldArtist original artist for identifying the song
+     * @param oldAlbum original album for identifying the song
+     * @param newTitle new title
+     * @param newArtist new artist
+     * @param newAlbum new album
+     * @param newGenre new genre
+     * @return true if update was successful
      */
-    public List<Song> findByArtist(String artist) {
-        String sql = "SELECT * FROM songs WHERE artist = ?";
-        List<Song> songs = new ArrayList<>();
-        
+    public boolean updateSong(String oldTitle, String oldArtist, String oldAlbum, 
+                             String newTitle, String newArtist, String newAlbum, String newGenre) {
+        String sql = "UPDATE songs SET title = ?, artist = ?, album = ?, genre = ? " +
+                     "WHERE title = ? AND artist = ? AND album = ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newTitle);
+            pstmt.setString(2, newArtist);
+            pstmt.setString(3, newAlbum);
+            pstmt.setString(4, newGenre);
+            pstmt.setString(5, oldTitle);
+            pstmt.setString(6, oldArtist);
+            pstmt.setString(7, oldAlbum);
             
-            pstmt.setString(1, artist);
+            int affectedRows = pstmt.executeUpdate();
             
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Song song = mapResultSetToSong(rs);
-                    songs.add(song);
-                }
+            // Only commit if we're not in auto-commit mode
+            if (conn != null && !conn.getAutoCommit()) {
+                conn.commit();
             }
+            
+            return affectedRows > 0;
         } catch (SQLException e) {
-            logger.error("Error finding songs by artist", e);
+            e.printStackTrace();
+            return false;
         }
-        
-        return songs;
     }
 } 

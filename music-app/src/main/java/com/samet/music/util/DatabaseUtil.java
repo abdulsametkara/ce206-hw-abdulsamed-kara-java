@@ -6,13 +6,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.io.File;
 
 /**
  * Utility class for database operations
  */
 public class DatabaseUtil {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseUtil.class);
-    private static final String DB_URL = "jdbc:sqlite:musiclibrary.db";
+    private static final String DB_URL = "jdbc:sqlite:" + System.getProperty("user.dir") + File.separator + "musiclibrary.db";
     private static Connection connection;
 
     /**
@@ -22,7 +23,7 @@ public class DatabaseUtil {
         try {
             // Create database connection
             connection = DriverManager.getConnection(DB_URL);
-            logger.info("Connected to SQLite database");
+            logger.info("Connected to SQLite database at: " + DB_URL);
             
             // Create tables
             createTables();
@@ -72,6 +73,17 @@ public class DatabaseUtil {
                     "password TEXT NOT NULL," +
                     "email TEXT," +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+            
+            // Artists table
+            statement.execute("CREATE TABLE IF NOT EXISTS artists (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "name TEXT NOT NULL," +
+                    "bio TEXT," +
+                    "country TEXT," +
+                    "genre TEXT," +
+                    "user_id INTEGER," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+                    "FOREIGN KEY (user_id) REFERENCES users(id))");
             
             // Songs table
             statement.execute("CREATE TABLE IF NOT EXISTS songs (" +

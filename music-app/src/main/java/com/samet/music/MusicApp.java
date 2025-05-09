@@ -9,6 +9,7 @@ import com.samet.music.controller.UserController;
 import com.samet.music.util.DatabaseUtil;
 import com.samet.music.view.LoginMenuView;
 import com.samet.music.view.MenuView;
+import com.samet.music.gui.MusicLibraryGUI;
 
 /**
  * Main application class
@@ -22,6 +23,33 @@ public class MusicApp {
         // Initialize database
         DatabaseUtil.initializeDatabase();
         logger.info("Database initialized");
+        
+        // Launch the GUI instead of the console version
+        if (args.length > 0 && args[0].equals("--console")) {
+            runConsoleApp();
+        } else {
+            runGuiApp();
+        }
+    }
+    
+    private static void runGuiApp() {
+        logger.info("Starting GUI application...");
+        
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                try {
+                    MusicLibraryGUI frame = new MusicLibraryGUI();
+                    frame.setVisible(true);
+                } catch (Exception e) {
+                    logger.error("Error starting GUI application", e);
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+    
+    private static void runConsoleApp() {
+        logger.info("Starting console application...");
         
         // Initialize controllers
         UserController userController = new UserController();

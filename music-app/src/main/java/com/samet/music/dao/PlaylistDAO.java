@@ -10,18 +10,183 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Data Access Object for Playlist entities
  */
 public class PlaylistDAO {
-    private static final Logger logger = LoggerFactory.getLogger(PlaylistDAO.class);
     private final SongDAO songDAO;
 
+    public PlaylistDAO() {
+        this.songDAO = new SongDAO();
+        
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            // Create playlists table
+            String sql = "CREATE TABLE IF NOT EXISTS playlists (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "name TEXT NOT NULL," +
+                    "description TEXT," +
+                    "user_id INTEGER," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                    ")";
+            conn.createStatement().execute(sql);
+            
+            // Create playlist_songs table to map songs to playlists
+            sql = "CREATE TABLE IF NOT EXISTS playlist_songs (" +
+                    "playlist_id INTEGER," +
+                    "song_id INTEGER," +
+                    "position INTEGER," +
+                    "PRIMARY KEY (playlist_id, song_id)," +
+                    "FOREIGN KEY (playlist_id) REFERENCES playlists(id)," +
+                    "FOREIGN KEY (song_id) REFERENCES songs(id)" +
+                    ")";
+            conn.createStatement().execute(sql);
+            System.out.println("PlaylistDAO: playlists tables check/creation completed");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
     public PlaylistDAO(SongDAO songDAO) {
         this.songDAO = songDAO;
+        
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            // Create playlists table
+            String sql = "CREATE TABLE IF NOT EXISTS playlists (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "name TEXT NOT NULL," +
+                    "description TEXT," +
+                    "user_id INTEGER," +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                    ")";
+            conn.createStatement().execute(sql);
+            
+            // Create playlist_songs table to map songs to playlists
+            sql = "CREATE TABLE IF NOT EXISTS playlist_songs (" +
+                    "playlist_id INTEGER," +
+                    "song_id INTEGER," +
+                    "position INTEGER," +
+                    "PRIMARY KEY (playlist_id, song_id)," +
+                    "FOREIGN KEY (playlist_id) REFERENCES playlists(id)," +
+                    "FOREIGN KEY (song_id) REFERENCES songs(id)" +
+                    ")";
+            conn.createStatement().execute(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Add a new playlist with basic information (KULLANICI ID'Sİ GEREKLİ)
+     * @param name Playlist name
+     * @param description Playlist description
+     * @param userId Kullanıcı ID'si
+     * @return true if added successfully
+     */
+    public boolean addPlaylist(String name, String description, int userId) {
+        String sql = "INSERT INTO playlists (name, description, user_id) VALUES (?, ?, ?)";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setString(2, description);
+            pstmt.setInt(3, userId);
+            int affectedRows = pstmt.executeUpdate();
+            if (conn != null && !conn.getAutoCommit()) {
+                conn.commit();
+            }
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Eski fonksiyon, yeni fonksiyona yönlendirildi. KULLANIMDAN KALDIRILMASI ÖNERİLİR.
+     */
+    public boolean addPlaylist(String name, String description) {
+        // TODO: Kullanıcı ID'si gereklidir! Lütfen yeni fonksiyonu kullanın.
+        return false;
+    }
+    
+    /**
+     * Update an existing playlist
+     * @param oldName Original name for identifying the playlist
+     * @param newName New name
+     * @return true if update was successful
+     */
+    public boolean updatePlaylist(String oldName, String newName) {
+        String sql = "UPDATE playlists SET name = ? WHERE name = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, newName);
+            pstmt.setString(2, oldName);
+            
+            int affectedRows = pstmt.executeUpdate();
+            
+            // Only commit if we're not in auto-commit mode
+            if (conn != null && !conn.getAutoCommit()) {
+                conn.commit();
+            }
+            
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Delete a playlist by name
+     * @param name Playlist name
+     * @return true if deleted successfully
+     */
+    public boolean deletePlaylist(String name) {
+        String sql = "DELETE FROM playlists WHERE name = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, name);
+            
+            int affectedRows = pstmt.executeUpdate();
+            
+            // Only commit if we're not in auto-commit mode
+            if (conn != null && !conn.getAutoCommit()) {
+                conn.commit();
+            }
+            
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
+     * Get all playlists as string arrays for display
+     * @return List of string arrays containing [name, songCount, created]
+     */
+    public List<String[]> getAllPlaylists() {
+        List<String[]> playlists = new ArrayList<>();
+        String sql = "SELECT p.name, COUNT(ps.song_id) as song_count, p.created_at " +
+                    "FROM playlists p " +
+                    "LEFT JOIN playlist_songs ps ON p.id = ps.playlist_id " +
+                    "GROUP BY p.id, p.name, p.created_at";
+        try (Connection conn = DatabaseUtil.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                playlists.add(new String[]{
+                    rs.getString("name"),
+                    String.valueOf(rs.getInt("song_count")),
+                    rs.getString("created_at")
+                });
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return playlists;
     }
 
     /**
@@ -30,51 +195,70 @@ public class PlaylistDAO {
      * @return the created playlist with id
      */
     public Playlist create(Playlist playlist) {
-        String insertSql = "INSERT INTO playlists (name, user_id) VALUES (?, ?)";
-        String idSql = "SELECT last_insert_rowid() as id";
+        String sql = "INSERT INTO playlists (name, description, user_id) VALUES (?, ?, ?)";
         
-        try (Connection conn = DatabaseUtil.getConnection()) {
-            // Auto-commit'i devre dışı bırak
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean previousAutoCommit = true;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            
+            // Save the current auto-commit state
+            previousAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             
-            try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-                pstmt.setString(1, playlist.getName());
-                pstmt.setInt(2, playlist.getUserId());
+            pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            
+            pstmt.setString(1, playlist.getName());
+            pstmt.setString(2, playlist.getDescription());
+            pstmt.setInt(3, playlist.getUserId());
                 
-                int affectedRows = pstmt.executeUpdate();
+            int affectedRows = pstmt.executeUpdate();
                 
-                if (affectedRows > 0) {
-                    // Son eklenen satırın ID'sini al
-                    try (Statement stmt = conn.createStatement();
-                         ResultSet rs = stmt.executeQuery(idSql)) {
-                        if (rs.next()) {
-                            playlist.setId(rs.getInt("id"));
-                            conn.commit();
+            if (affectedRows > 0) {
+                // Get the generated ID
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        playlist.setId(generatedKeys.getInt(1));
                             
-                            // Add songs to playlist_songs table
-                            if (playlist.getSongs() != null && !playlist.getSongs().isEmpty()) {
-                                addSongsToPlaylist(playlist.getId(), playlist.getSongs());
+                        // Add songs to playlist_songs table if any
+                        if (playlist.getSongs() != null && !playlist.getSongs().isEmpty()) {
+                            if (!addSongsToPlaylist(conn, playlist.getId(), playlist.getSongs())) {
+                                conn.rollback();
+                                return null;
                             }
-                            
-                            logger.info("Playlist created successfully with ID: {}", playlist.getId());
-                            return playlist;
                         }
+                        
+                        conn.commit();
+                        return playlist;
                     }
                 }
-                
-                conn.rollback();
-                logger.error("Failed to create playlist, no ID obtained.");
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
             }
+                
+            conn.rollback();
+            return null;
         } catch (SQLException e) {
-            logger.error("Error creating playlist", e);
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            e.printStackTrace();
+            return null;
+        } finally {
+            // Restore original auto-commit state
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(previousAutoCommit);
+                    if (pstmt != null) pstmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
-        
-        return null;
     }
 
     /**
@@ -102,7 +286,7 @@ public class PlaylistDAO {
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error finding playlist by ID", e);
+            e.printStackTrace();
         }
         
         return Optional.empty();
@@ -114,7 +298,7 @@ public class PlaylistDAO {
      * @return a list of all playlists for the specified user
      */
     public List<Playlist> findByUserId(int userId) {
-        String sql = "SELECT * FROM playlists WHERE user_id = ?";
+        String sql = "SELECT * FROM playlists WHERE user_id = ? ORDER BY created_at DESC";
         List<Playlist> playlists = new ArrayList<>();
         
         try (Connection conn = DatabaseUtil.getConnection();
@@ -124,28 +308,17 @@ public class PlaylistDAO {
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    try {
                         Playlist playlist = mapResultSetToPlaylist(rs);
                         
-                        // Get songs for this playlist - hata durumunda boş liste kullan
-                        List<Song> songs = new ArrayList<>();
-                        try {
-                            songs = getSongsByPlaylistId(playlist.getId());
-                        } catch (Exception e) {
-                            // Sessizce devam et
-                        }
+                    // Get songs for this playlist
+                    List<Song> songs = getSongsByPlaylistId(playlist.getId());
                         playlist.setSongs(songs);
                         
                         playlists.add(playlist);
-                    } catch (Exception e) {
-                        // Bir kayıt hatalıysa diğerlerine devam et
-                        logger.warn("Error mapping playlist, skipping", e);
-                    }
                 }
             }
         } catch (SQLException e) {
-            // Hata logunu bastır ama uygulamanın çökmesine izin verme
-            logger.error("Error finding playlists by user ID", e);
+            e.printStackTrace();
         }
         
         return playlists;
@@ -173,7 +346,7 @@ public class PlaylistDAO {
                 playlists.add(playlist);
             }
         } catch (SQLException e) {
-            logger.error("Error finding all playlists", e);
+            e.printStackTrace();
         }
         
         return playlists;
@@ -185,13 +358,15 @@ public class PlaylistDAO {
      * @return true if the update was successful, false otherwise
      */
     public boolean update(Playlist playlist) {
-        String sql = "UPDATE playlists SET name = ?, user_id = ? WHERE id = ?";
+        String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
         
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
+            conn.setAutoCommit(false);
+            
             pstmt.setString(1, playlist.getName());
-            pstmt.setInt(2, playlist.getUserId());
+            pstmt.setString(2, playlist.getDescription());
             pstmt.setInt(3, playlist.getId());
             
             int affectedRows = pstmt.executeUpdate();
@@ -200,17 +375,22 @@ public class PlaylistDAO {
                 // Update the songs in the playlist
                 if (playlist.getSongs() != null) {
                     // First remove all existing songs
-                    removeSongsFromPlaylist(playlist.getId());
+                    removeSongsFromPlaylist(conn, playlist.getId());
                     
-                    // Then add the current songs
-                    addSongsToPlaylist(playlist.getId(), playlist.getSongs());
+                    // Then add the current songs if any
+                    if (!playlist.getSongs().isEmpty() && !addSongsToPlaylist(conn, playlist.getId(), playlist.getSongs())) {
+                        conn.rollback();
+                        return false;
+                    }
                 }
                 
-                logger.info("Playlist updated successfully with ID: {}", playlist.getId());
+                conn.commit();
                 return true;
             }
+            
+            conn.rollback();
         } catch (SQLException e) {
-            logger.error("Error updating playlist", e);
+            e.printStackTrace();
         }
         
         return false;
@@ -222,24 +402,29 @@ public class PlaylistDAO {
      * @return true if the deletion was successful, false otherwise
      */
     public boolean delete(int id) {
-        // First remove all songs from the playlist
-        removeSongsFromPlaylist(id);
-        
-        String sql = "DELETE FROM playlists WHERE id = ?";
-        
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            conn.setAutoCommit(false);
             
+        // First remove all songs from the playlist
+            removeSongsFromPlaylist(conn, id);
+        
+            // Then delete the playlist
+        String sql = "DELETE FROM playlists WHERE id = ?";
+            
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, id);
             
             int affectedRows = pstmt.executeUpdate();
             
             if (affectedRows > 0) {
-                logger.info("Playlist deleted successfully with ID: {}", id);
+                    conn.commit();
                 return true;
+                }
+                
+                conn.rollback();
             }
         } catch (SQLException e) {
-            logger.error("Error deleting playlist", e);
+            e.printStackTrace();
         }
         
         return false;
@@ -252,15 +437,38 @@ public class PlaylistDAO {
      * @return true if the addition was successful, false otherwise
      */
     public boolean addSongsToPlaylist(int playlistId, List<Song> songs) {
-        String sql = "INSERT INTO playlist_songs (playlist_id, song_id) VALUES (?, ?)";
-        boolean success = true;
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            boolean success = addSongsToPlaylist(conn, playlistId, songs);
+            
+            if (success) {
+                conn.commit();
+            } else {
+                conn.rollback();
+            }
+            
+            return success;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        return false;
+    }
+    
+    /**
+     * Add songs to a playlist (internal method with transaction support)
+     */
+    private boolean addSongsToPlaylist(Connection conn, int playlistId, List<Song> songs) throws SQLException {
+        String sql = "INSERT INTO playlist_songs (playlist_id, song_id, position) VALUES (?, ?, ?)";
+        
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            int position = 0;
             
             for (Song song : songs) {
                 pstmt.setInt(1, playlistId);
                 pstmt.setInt(2, song.getId());
+                pstmt.setInt(3, position++);
                 
                 pstmt.addBatch();
             }
@@ -269,21 +477,12 @@ public class PlaylistDAO {
             
             for (int result : results) {
                 if (result <= 0) {
-                    success = false;
+                    return false;
                 }
-            }
-            
-            if (success) {
-                logger.info("Songs added to playlist successfully");
-            } else {
-                logger.error("Failed to add some songs to playlist");
-            }
-        } catch (SQLException e) {
-            logger.error("Error adding songs to playlist", e);
-            success = false;
         }
         
-        return success;
+            return true;
+        }
     }
 
     /**
@@ -292,21 +491,36 @@ public class PlaylistDAO {
      * @return true if the removal was successful, false otherwise
      */
     public boolean removeSongsFromPlaylist(int playlistId) {
-        String sql = "DELETE FROM playlist_songs WHERE playlist_id = ?";
-        
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            conn.setAutoCommit(false);
             
-            pstmt.setInt(1, playlistId);
+            boolean success = removeSongsFromPlaylist(conn, playlistId);
             
-            pstmt.executeUpdate();
-            logger.info("Songs removed from playlist successfully");
-            return true;
+            if (success) {
+                conn.commit();
+            } else {
+                conn.rollback();
+            }
+            
+            return success;
         } catch (SQLException e) {
-            logger.error("Error removing songs from playlist", e);
+            e.printStackTrace();
         }
         
         return false;
+    }
+    
+    /**
+     * Remove songs from a playlist (internal method with transaction support)
+     */
+    private boolean removeSongsFromPlaylist(Connection conn, int playlistId) throws SQLException {
+        String sql = "DELETE FROM playlist_songs WHERE playlist_id = ?";
+        
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, playlistId);
+            pstmt.executeUpdate();
+            return true;
+        }
     }
 
     /**
@@ -315,7 +529,10 @@ public class PlaylistDAO {
      * @return a list of songs in the playlist
      */
     private List<Song> getSongsByPlaylistId(int playlistId) {
-        String sql = "SELECT song_id FROM playlist_songs WHERE playlist_id = ?";
+        String sql = "SELECT s.* FROM songs s " +
+                    "JOIN playlist_songs ps ON s.id = ps.song_id " +
+                    "WHERE ps.playlist_id = ? " +
+                    "ORDER BY ps.position";
         List<Song> songs = new ArrayList<>();
         
         try (Connection conn = DatabaseUtil.getConnection();
@@ -325,12 +542,11 @@ public class PlaylistDAO {
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    int songId = rs.getInt("song_id");
-                    songDAO.findById(songId).ifPresent(songs::add);
+                    songs.add(songDAO.mapResultSetToSong(rs));
                 }
             }
         } catch (SQLException e) {
-            logger.error("Error getting songs by playlist ID", e);
+            e.printStackTrace();
         }
         
         return songs;
@@ -345,12 +561,13 @@ public class PlaylistDAO {
     private Playlist mapResultSetToPlaylist(ResultSet rs) throws SQLException {
         int id = rs.getInt("id");
         String name = rs.getString("name");
+        String description = rs.getString("description");
         int userId = rs.getInt("user_id");
         
         // Convert timestamp to LocalDateTime
         Timestamp timestamp = rs.getTimestamp("created_at");
         LocalDateTime createdAt = timestamp != null ? timestamp.toLocalDateTime() : LocalDateTime.now();
         
-        return new Playlist(id, name, "", userId, createdAt);
+        return new Playlist(id, name, description, userId, createdAt);
     }
 } 

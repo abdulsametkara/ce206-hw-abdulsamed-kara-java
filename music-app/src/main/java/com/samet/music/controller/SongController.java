@@ -1,9 +1,11 @@
 package com.samet.music.controller;
 
 import com.samet.music.dao.SongDAO;
+import com.samet.music.dao.UserSongStatisticsDAO;
 import com.samet.music.model.Song;
 import com.samet.music.model.User;
 import com.samet.music.model.Album;
+import com.samet.music.service.RecommendationService;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -23,6 +25,8 @@ public class SongController {
     private static final Logger logger = LoggerFactory.getLogger(SongController.class);
     private SongDAO songDAO;
     private final UserController userController;
+    private final UserSongStatisticsDAO userSongStatisticsDAO;
+    private final RecommendationService recommendationService;
 
     /**
      * Constructor
@@ -31,6 +35,8 @@ public class SongController {
     public SongController(UserController userController) {
         this.songDAO = new SongDAO();
         this.userController = userController;
+        this.userSongStatisticsDAO = new UserSongStatisticsDAO();
+        this.recommendationService = new RecommendationService();
     }
     
     /**
@@ -66,12 +72,15 @@ public class SongController {
             return null;
         }
         
+        System.out.println("Creating song: " + title + " by " + artist);
         Song song = new Song(title, artist, album, genre, year, duration, filePath, currentUser.getId());
         Song addedSong = songDAO.create(song);
         
         if (addedSong != null) {
+            System.out.println("Song added successfully with ID: " + addedSong.getId());
             logger.info("Song added: {} by {}", title, artist);
         } else {
+            System.out.println("Failed to add song to database");
             logger.warn("Failed to add song: {} by {}", title, artist);
         }
         
@@ -248,61 +257,233 @@ public class SongController {
             return new ArrayList<>();
         }
         
-        // Get user's songs
-        List<Song> userSongs = songDAO.findByUserId(currentUser.getId());
+        try {
+            // Use the RecommendationService to get song recommendations
+            return recommendationService.getSongRecommendations(currentUser, 10);
+        } catch (Exception e) {
+            logger.error("Error getting recommendations", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Get enhanced recommendations with reasons
+     * @return a map of recommended songs with recommendation reasons
+     */
+    public Map<Song, String> getEnhancedRecommendations() {
+        User currentUser = userController.getCurrentUser();
         
-        // If user has no songs, return empty list
-        if (userSongs.isEmpty()) {
-            logger.info("No recommendations: user has no songs");
+        if (currentUser == null) {
+            logger.warn("Cannot get enhanced recommendations: no user is logged in");
+            return new HashMap<>();
+        }
+        
+        try {
+            return recommendationService.getEnhancedSongRecommendations(currentUser, 10);
+        } catch (Exception e) {
+            logger.error("Error getting enhanced recommendations", e);
+            return new HashMap<>();
+        }
+    }
+    
+    /**
+     * Get most likely to enjoy songs based on user's listening history
+     * @return a list of recommended songs
+     */
+    public List<Song> getMostLikelyToEnjoySongs() {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot get most likely to enjoy songs: no user is logged in");
             return new ArrayList<>();
         }
         
-        // Calculate genre preferences
-        Map<String, Integer> genrePreferences = new HashMap<>();
-        Map<String, Integer> artistPreferences = new HashMap<>();
+        try {
+            return recommendationService.getMostLikelyToEnjoySongs(currentUser, 10);
+        } catch (Exception e) {
+            logger.error("Error getting most likely to enjoy songs", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Play a song and increment its play count
+     * @param songId the song ID
+     * @return the song that was played, or null if not found
+     */
+    public Song playSong(int songId) {
+        User currentUser = userController.getCurrentUser();
         
-        for (Song song : userSongs) {
-            // Count genres
-            String genre = song.getGenre();
-            if (genre != null && !genre.isEmpty()) {
-                genrePreferences.put(genre, genrePreferences.getOrDefault(genre, 0) + 1);
-            }
-            
-            // Count artists
-            String artist = song.getArtist();
-            if (artist != null && !artist.isEmpty()) {
-                artistPreferences.put(artist, artistPreferences.getOrDefault(artist, 0) + 1);
-            }
+        if (currentUser == null) {
+            logger.warn("Cannot play song: no user is logged in");
+            return null;
         }
         
-        // Get top 3 genres and artists
-        List<String> topGenres = genrePreferences.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(3)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+        Optional<Song> songOpt = songDAO.findById(songId);
         
-        List<String> topArtists = artistPreferences.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(3)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+        if (!songOpt.isPresent()) {
+            logger.warn("Cannot play song: song with ID {} not found", songId);
+            return null;
+        }
         
-        // Get all songs
-        List<Song> allSongs = songDAO.findAll();
+        Song song = songOpt.get();
         
-        // Filter to songs not owned by user but matching preferences
-        List<Song> recommendations = allSongs.stream()
-                .filter(song -> song.getUserId() != currentUser.getId())
-                .filter(song -> 
-                    (song.getGenre() != null && topGenres.contains(song.getGenre())) ||
-                    (song.getArtist() != null && topArtists.contains(song.getArtist()))
-                )
-                .collect(Collectors.toList());
+        // Increment play count
+        boolean tracked = userSongStatisticsDAO.incrementPlayCount(currentUser.getId(), songId);
         
-        logger.info("Generated {} song recommendations for user", recommendations.size());
+        if (tracked) {
+            logger.info("Song played: ID {}, {} by {}", songId, song.getTitle(), song.getArtist());
+        } else {
+            logger.warn("Failed to track play count for song: ID {}", songId);
+        }
         
-        return recommendations;
+        return song;
+    }
+    
+    /**
+     * Mark a song as favorite or remove from favorites
+     * @param songId the song ID
+     * @param favorite true to add to favorites, false to remove
+     * @return true if operation was successful, false otherwise
+     */
+    public boolean toggleFavorite(int songId, boolean favorite) {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot toggle favorite: no user is logged in");
+            return false;
+        }
+        
+        Optional<Song> songOpt = songDAO.findById(songId);
+        
+        if (!songOpt.isPresent()) {
+            logger.warn("Cannot toggle favorite: song with ID {} not found", songId);
+            return false;
+        }
+        
+        Song song = songOpt.get();
+        
+        boolean updated = userSongStatisticsDAO.setFavorite(currentUser.getId(), songId, favorite);
+        
+        if (updated) {
+            if (favorite) {
+                logger.info("Song added to favorites: ID {}, {}", songId, song.getTitle());
+            } else {
+                logger.info("Song removed from favorites: ID {}, {}", songId, song.getTitle());
+            }
+        } else {
+            logger.warn("Failed to update favorite status for song: ID {}", songId);
+            }
+        
+        return updated;
+        }
+        
+    /**
+     * Check if a song is in the user's favorites
+     * @param songId the song ID
+     * @return true if the song is a favorite, false otherwise
+     */
+    public boolean isFavorite(int songId) {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot check favorite status: no user is logged in");
+            return false;
+        }
+        
+        return userSongStatisticsDAO.isFavorite(currentUser.getId(), songId);
+    }
+    
+    /**
+     * Get user's favorite songs
+     * @return a list of favorite songs
+     */
+    public List<Song> getFavoriteSongs() {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot get favorite songs: no user is logged in");
+            return new ArrayList<>();
+        }
+        
+        List<Integer> favoriteSongIds = userSongStatisticsDAO.getFavoriteSongs(currentUser.getId());
+        List<Song> favoriteSongs = new ArrayList<>();
+        
+        for (Integer songId : favoriteSongIds) {
+            songDAO.findById(songId).ifPresent(favoriteSongs::add);
+        }
+        
+        logger.info("Retrieved {} favorite songs for user {}", favoriteSongs.size(), currentUser.getUsername());
+        
+        return favoriteSongs;
+    }
+    
+    /**
+     * Get most played songs for the current user
+     * @param limit maximum number of songs to return
+     * @return a list of most played songs
+     */
+    public List<Song> getMostPlayedSongs(int limit) {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot get most played songs: no user is logged in");
+            return new ArrayList<>();
+        }
+        
+        List<Integer> mostPlayedIds = userSongStatisticsDAO.getMostPlayedSongs(currentUser.getId(), limit);
+        List<Song> mostPlayedSongs = new ArrayList<>();
+        
+        for (Integer songId : mostPlayedIds) {
+            songDAO.findById(songId).ifPresent(mostPlayedSongs::add);
+        }
+        
+        logger.info("Retrieved {} most played songs for user {}", mostPlayedSongs.size(), currentUser.getUsername());
+        
+        return mostPlayedSongs;
+    }
+    
+    /**
+     * Get recently played songs for the current user
+     * @param limit maximum number of songs to return
+     * @return a list of recently played songs
+     */
+    public List<Song> getRecentlyPlayedSongs(int limit) {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot get recently played songs: no user is logged in");
+            return new ArrayList<>();
+        }
+        
+        List<Integer> recentSongIds = userSongStatisticsDAO.getRecentlyPlayedSongs(currentUser.getId(), limit);
+        List<Song> recentSongs = new ArrayList<>();
+        
+        for (Integer songId : recentSongIds) {
+            songDAO.findById(songId).ifPresent(recentSongs::add);
+        }
+        
+        logger.info("Retrieved {} recently played songs for user {}", recentSongs.size(), currentUser.getUsername());
+        
+        return recentSongs;
+    }
+    
+    /**
+     * Get user's listening statistics
+     * @return a map with statistics
+     */
+    public Map<String, Object> getUserStatistics() {
+        User currentUser = userController.getCurrentUser();
+        
+        if (currentUser == null) {
+            logger.warn("Cannot get user statistics: no user is logged in");
+            return new HashMap<>();
+        }
+        
+        Map<String, Object> stats = userSongStatisticsDAO.getUserStatistics(currentUser.getId());
+        logger.info("Retrieved listening statistics for user {}", currentUser.getUsername());
+        
+        return stats;
     }
 
     /**
@@ -509,5 +690,20 @@ public class SongController {
         // For now we just return success
         logger.info("Song added to album: song ID {} to album ID {}", songId, albumId);
         return true;
+    }
+
+    // Song ekleme
+    public void addSong(String title, String artist, String album, String genre) {
+        songDAO.addSong(title, artist, album, genre);
+    }
+
+    // Tüm şarkıları getir
+    public List<String[]> getAllSongs() {
+        return songDAO.getAllSongs();
+    }
+
+    // Şarkı silme (title, artist, album ile)
+    public void deleteSong(String title, String artist, String album) {
+        songDAO.deleteSong(title, artist, album);
     }
 } 

@@ -163,10 +163,13 @@ public class Album {
     }
 
     /**
-     * Get the songs in the album
-     * @return the songs in the album
+     * Get the songs in this album
+     * @return the list of songs
      */
     public List<Song> getSongs() {
+        if (songs == null) {
+            songs = new ArrayList<>();
+        }
         return songs;
     }
 
@@ -209,11 +212,11 @@ public class Album {
     }
 
     /**
-     * Get the number of songs in the album
-     * @return the number of songs
+     * Get the number of songs in this album
+     * @return the song count
      */
     public int getSongCount() {
-        return songs.size();
+        return getSongs().size();
     }
 
     /**

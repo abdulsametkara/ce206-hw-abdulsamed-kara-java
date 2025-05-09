@@ -7,6 +7,18 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Artists Table
+CREATE TABLE IF NOT EXISTS artists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    bio TEXT,
+    country TEXT,
+    genre TEXT,
+    user_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 -- Songs Table
 CREATE TABLE IF NOT EXISTS songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

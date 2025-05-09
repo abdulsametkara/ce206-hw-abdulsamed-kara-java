@@ -13,15 +13,24 @@ public class AlbumController {
     private static final Logger logger = LoggerFactory.getLogger(AlbumController.class);
     private final AlbumDAO albumDAO;
     private final SongDAO songDAO;
+    private final UserController userController;
 
     public AlbumController() {
         this.albumDAO = new AlbumDAO();
         this.songDAO = new SongDAO();
+        this.userController = new UserController();
     }
 
     public AlbumController(AlbumDAO albumDAO, SongDAO songDAO) {
         this.albumDAO = albumDAO;
         this.songDAO = songDAO;
+        this.userController = new UserController();
+    }
+    
+    public AlbumController(AlbumDAO albumDAO, SongDAO songDAO, UserController userController) {
+        this.albumDAO = albumDAO;
+        this.songDAO = songDAO;
+        this.userController = userController;
     }
 
     public boolean createAlbum(Album album) {

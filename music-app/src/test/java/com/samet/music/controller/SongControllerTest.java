@@ -5,20 +5,27 @@ import static org.mockito.Mockito.*;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import com.samet.music.dao.AlbumDAO;
 import com.samet.music.dao.SongDAO;
+import com.samet.music.dao.UserSongStatisticsDAO;
 import com.samet.music.model.Album;
 import com.samet.music.model.Song;
 import com.samet.music.model.User;
+import com.samet.music.service.RecommendationService;
 
 /**
  * Test sınıfı - gerekli yerlerde mock kullanarak test eder
@@ -30,12 +37,34 @@ public class SongControllerTest {
     private TestUserController userController;
     private TestSongDAO songDAO;
     
+    @Mock
+    private RecommendationService mockRecommendationService;
+    
+    @Mock
+    private UserSongStatisticsDAO mockUserSongStatisticsDAO;
+    
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        
         userController = new TestUserController();
         songDAO = new TestSongDAO();
         songController = new SongController(userController);
         songController.setSongDAO(songDAO);
+        
+        // Set the mocked recommendation service using reflection since there's no setter
+        try {
+            java.lang.reflect.Field recommendationServiceField = SongController.class.getDeclaredField("recommendationService");
+            recommendationServiceField.setAccessible(true);
+            recommendationServiceField.set(songController, mockRecommendationService);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        // Diğer dependency'leri reflection ile değiştir
+        java.lang.reflect.Field userSongStatisticsDAOField = SongController.class.getDeclaredField("userSongStatisticsDAO");
+        userSongStatisticsDAOField.setAccessible(true);
+        userSongStatisticsDAOField.set(songController, mockUserSongStatisticsDAO);
     }
     
     @Test
@@ -290,40 +319,16 @@ public class SongControllerTest {
         testUser.setUsername("testuser");
         userController.setCurrentUser(testUser);
         
-        // Kullanıcının şarkılarını ekle
-        Song userSong1 = new Song();
-        userSong1.setId(1);
-        userSong1.setUserId(1);
-        userSong1.setTitle("User Rock Song");
-        userSong1.setGenre("Rock");
-        userSong1.setArtist("Artist1");
+        // Setup mock recommendations
+        List<Song> mockRecommendations = new ArrayList<>();
+        Song recommendedSong = new Song();
+        recommendedSong.setId(100);
+        recommendedSong.setTitle("Recommended Song");
+        recommendedSong.setArtist("Recommended Artist");
+        mockRecommendations.add(recommendedSong);
         
-        Song userSong2 = new Song();
-        userSong2.setId(2);
-        userSong2.setUserId(1);
-        userSong2.setTitle("User Pop Song");
-        userSong2.setGenre("Pop");
-        userSong2.setArtist("Artist2");
-        
-        // Diğer kullanıcıların şarkıları (öneriler için)
-        Song otherSong1 = new Song();
-        otherSong1.setId(3);
-        otherSong1.setUserId(2);
-        otherSong1.setTitle("Other Rock Song");
-        otherSong1.setGenre("Rock");
-        otherSong1.setArtist("Artist3");
-        
-        Song otherSong2 = new Song();
-        otherSong2.setId(4);
-        otherSong2.setUserId(2);
-        otherSong2.setTitle("Other Pop Song");
-        otherSong2.setGenre("Pop");
-        otherSong2.setArtist("Artist2");
-        
-        songDAO.addTestSong(userSong1);
-        songDAO.addTestSong(userSong2);
-        songDAO.addTestSong(otherSong1);
-        songDAO.addTestSong(otherSong2);
+        // Configure the mock to return these recommendations
+        when(mockRecommendationService.getSongRecommendations(eq(testUser), anyInt())).thenReturn(mockRecommendations);
         
         // Test
         List<Song> result = songController.getRecommendations();
@@ -331,6 +336,7 @@ public class SongControllerTest {
         // Doğrulama
         assertNotNull("Öneri listesi null olmamalı", result);
         assertTrue("Öneri listesi boş olmamalı", !result.isEmpty());
+        assertEquals("Recommended Song", result.get(0).getTitle());
     }
     
     @Test
@@ -550,6 +556,186 @@ public class SongControllerTest {
         
         // Doğrulama
         assertFalse("Kullanıcı oturumu yokken albüme şarkı eklenememeli", result);
+    }
+    
+    @Test
+    public void testGetEnhancedRecommendations_Success() {
+        // Test kullanıcısını ayarla
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setUsername("testuser");
+        userController.setCurrentUser(testUser);
+        
+        // Test verisi
+        Map<Song, String> expectedRecommendations = new HashMap<>();
+        expectedRecommendations.put(
+            new Song("Recommended Song", "Recommended Artist", "Recommended Album", "Jazz", 2023, 210, "path/to/file", 3),
+            "Because you like Jazz music"
+        );
+        
+        // Mock davranışları
+        when(mockRecommendationService.getEnhancedSongRecommendations(eq(testUser), anyInt())).thenReturn(expectedRecommendations);
+        
+        // Test
+        Map<Song, String> result = songController.getEnhancedRecommendations();
+        
+        // Doğrulama
+        assertEquals(expectedRecommendations, result);
+        verify(mockRecommendationService).getEnhancedSongRecommendations(eq(testUser), anyInt());
+    }
+    
+    @Test
+    public void testGetEnhancedRecommendations_NoUserLoggedIn() {
+        // Kullanıcı oturumu yok
+        userController.setCurrentUser(null);
+        
+        // Test
+        Map<Song, String> result = songController.getEnhancedRecommendations();
+        
+        // Doğrulama
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(mockRecommendationService);
+    }
+    
+    @Test
+    public void testPlaySong_Success() {
+        // Test kullanıcısını ayarla
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setUsername("testuser");
+        userController.setCurrentUser(testUser);
+        
+        // Test şarkısını ekle
+        Song testSong = new Song();
+        testSong.setId(1);
+        testSong.setUserId(1);
+        testSong.setTitle("Test Song");
+        songDAO.addTestSong(testSong);
+        
+        // Mock davranışları
+        when(mockUserSongStatisticsDAO.incrementPlayCount(testUser.getId(), 1)).thenReturn(true);
+        
+        // Test
+        Song result = songController.playSong(1);
+        
+        // Doğrulama
+        assertNotNull("Çalınan şarkı null olmamalı", result);
+        assertEquals("Çalınan şarkı ID'si doğru olmalı", 1, result.getId());
+        verify(mockUserSongStatisticsDAO).incrementPlayCount(testUser.getId(), 1);
+    }
+    
+    @Test
+    public void testPlaySong_NoUserLoggedIn() {
+        // Kullanıcı oturumu yok
+        userController.setCurrentUser(null);
+        
+        // Test
+        Song result = songController.playSong(1);
+        
+        // Doğrulama
+        assertNull("Kullanıcı oturumu yokken şarkı çalınamamalı", result);
+        verifyNoInteractions(mockUserSongStatisticsDAO);
+    }
+    
+    @Test
+    public void testPlaySong_SongNotFound() {
+        // Test kullanıcısını ayarla
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setUsername("testuser");
+        userController.setCurrentUser(testUser);
+        
+        // Test
+        Song result = songController.playSong(999); // Var olmayan şarkı ID'si
+        
+        // Doğrulama
+        assertNull("Var olmayan şarkı çalınamamalı", result);
+        verifyNoInteractions(mockUserSongStatisticsDAO);
+    }
+    
+    @Test
+    public void testToggleFavorite_Success() {
+        // Test kullanıcısını ayarla
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setUsername("testuser");
+        userController.setCurrentUser(testUser);
+        
+        // Test şarkısını ekle
+        Song testSong = new Song();
+        testSong.setId(1);
+        testSong.setUserId(1);
+        songDAO.addTestSong(testSong);
+        
+        // Mock davranışları
+        when(mockUserSongStatisticsDAO.setFavorite(testUser.getId(), 1, true)).thenReturn(true);
+        
+        // Test
+        boolean result = songController.toggleFavorite(1, true);
+        
+        // Doğrulama
+        assertTrue("Favoriye ekleme başarılı olmalı", result);
+        verify(mockUserSongStatisticsDAO).setFavorite(testUser.getId(), 1, true);
+    }
+    
+    @Test
+    public void testToggleFavorite_NoUserLoggedIn() {
+        // Kullanıcı oturumu yok
+        userController.setCurrentUser(null);
+        
+        // Test
+        boolean result = songController.toggleFavorite(1, true);
+        
+        // Doğrulama
+        assertFalse("Kullanıcı oturumu yokken favori eklenememeli", result);
+        verifyNoInteractions(mockUserSongStatisticsDAO);
+    }
+    
+    @Test
+    public void testGetFavoriteSongs_Success() {
+        // Test kullanıcısını ayarla
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setUsername("testuser");
+        userController.setCurrentUser(testUser);
+        
+        // Test verisi
+        List<Integer> favoriteSongIds = new ArrayList<>();
+        favoriteSongIds.add(1);
+        favoriteSongIds.add(2);
+        
+        Song song1 = new Song("Favorite 1", "Artist 1", "Album 1", "Rock", 2023, 180, "path/to/file1", testUser.getId());
+        song1.setId(1);
+        Song song2 = new Song("Favorite 2", "Artist 2", "Album 2", "Pop", 2022, 200, "path/to/file2", testUser.getId());
+        song2.setId(2);
+        
+        songDAO.addTestSong(song1);
+        songDAO.addTestSong(song2);
+        
+        // Mock davranışları
+        when(mockUserSongStatisticsDAO.getFavoriteSongs(testUser.getId())).thenReturn(favoriteSongIds);
+        
+        // Test
+        List<Song> result = songController.getFavoriteSongs();
+        
+        // Doğrulama
+        assertEquals("Favori şarkı sayısı doğru olmalı", 2, result.size());
+        assertEquals("İlk favori şarkı doğru olmalı", 1, result.get(0).getId());
+        assertEquals("İkinci favori şarkı doğru olmalı", 2, result.get(1).getId());
+        verify(mockUserSongStatisticsDAO).getFavoriteSongs(testUser.getId());
+    }
+    
+    @Test
+    public void testGetFavoriteSongs_NoUserLoggedIn() {
+        // Kullanıcı oturumu yok
+        userController.setCurrentUser(null);
+        
+        // Test
+        List<Song> result = songController.getFavoriteSongs();
+        
+        // Doğrulama
+        assertTrue("Kullanıcı oturumu yokken favori şarkı listesi boş olmalı", result.isEmpty());
+        verifyNoInteractions(mockUserSongStatisticsDAO);
     }
     
     /**
