@@ -115,7 +115,7 @@ public class PlaylistControllerTest {
         
         // Etkileşimleri doğrula
         verify(mockUserController).getCurrentUser();
-        verifyZeroInteractions(mockPlaylistDAO);
+        verifyNoInteractions(mockPlaylistDAO);
     }
     
     /**
@@ -178,7 +178,7 @@ public class PlaylistControllerTest {
         
         // Etkileşimleri doğrula
         verify(mockUserController).getCurrentUser();
-        verifyZeroInteractions(mockPlaylistDAO);
+        verifyNoInteractions(mockPlaylistDAO);
     }
     
     /**
@@ -277,6 +277,25 @@ public class PlaylistControllerTest {
     }
     
     /**
+     * Çalma listesine şarkı ekleme metodunu test eder - kullanıcı giriş yapmamış
+     */
+    @Test
+    public void testAddSongToPlaylistNoUser() {
+        // Mock davranışlarını ayarla
+        when(mockUserController.getCurrentUser()).thenReturn(null);
+        
+        // Metodu çağır
+        boolean result = playlistController.addSongToPlaylist(testPlaylist.getId(), testSong.getId());
+        
+        // Sonuçları doğrula
+        assertFalse("Kullanıcı giriş yapmamışsa false dönmeli", result);
+        
+        // Etkileşimleri doğrula
+        verify(mockUserController).getCurrentUser();
+        verifyNoInteractions(mockPlaylistDAO);
+    }
+    
+    /**
      * Çalma listesinden şarkı kaldırma metodunu test eder - başarılı durum
      */
     @Test
@@ -308,6 +327,25 @@ public class PlaylistControllerTest {
         verify(mockUserController).getCurrentUser();
         verify(mockPlaylistDAO, atLeastOnce()).findById(testPlaylist.getId());
         verify(mockPlaylistDAO).update(any(Playlist.class));
+    }
+    
+    /**
+     * Çalma listesinden şarkı çıkarma metodunu test eder - kullanıcı giriş yapmamış
+     */
+    @Test
+    public void testRemoveSongFromPlaylistNoUser() {
+        // Mock davranışlarını ayarla
+        when(mockUserController.getCurrentUser()).thenReturn(null);
+        
+        // Metodu çağır
+        boolean result = playlistController.removeSongFromPlaylist(testPlaylist.getId(), testSong.getId());
+        
+        // Sonuçları doğrula
+        assertFalse("Kullanıcı giriş yapmamışsa false dönmeli", result);
+        
+        // Etkileşimleri doğrula
+        verify(mockUserController).getCurrentUser();
+        verifyNoInteractions(mockPlaylistDAO);
     }
     
     /**
@@ -352,7 +390,7 @@ public class PlaylistControllerTest {
         
         // Etkileşimleri doğrula
         verify(mockUserController).getCurrentUser();
-        verifyZeroInteractions(mockPlaylistDAO);
+        verifyNoInteractions(mockPlaylistDAO);
     }
     
     /**
@@ -392,7 +430,7 @@ public class PlaylistControllerTest {
         
         // Etkileşimleri doğrula
         verify(mockUserController).getCurrentUser();
-        verifyZeroInteractions(mockPlaylistDAO);
+        verifyNoInteractions(mockPlaylistDAO);
     }
     
     /**

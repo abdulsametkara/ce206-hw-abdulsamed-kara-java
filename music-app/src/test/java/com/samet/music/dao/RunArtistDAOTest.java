@@ -1,0 +1,27 @@
+package com.samet.music.dao;
+
+import org.junit.runner.JUnitCore;
+import org.junit.runner.Result;
+import org.junit.runner.notification.Failure;
+
+/**
+ * Runner class for ArtistDAOTest
+ */
+public class RunArtistDAOTest {
+    public static void main(String[] args) {
+        Result result = JUnitCore.runClasses(ArtistDAOTest.class);
+        
+        System.out.println("Total tests run: " + result.getRunCount());
+        System.out.println("Tests passed: " + (result.getRunCount() - result.getFailureCount()));
+        System.out.println("Tests failed: " + result.getFailureCount());
+        
+        if (!result.getFailures().isEmpty()) {
+            System.out.println("\nFailures:");
+            for (Failure failure : result.getFailures()) {
+                System.out.println(failure.toString());
+            }
+        }
+        
+        System.out.println("\nTest completion time: " + result.getRunTime() + "ms");
+    }
+} 

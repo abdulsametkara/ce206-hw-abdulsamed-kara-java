@@ -50,21 +50,67 @@ public class ArtistDAO {
      * @return true if added successfully
      */
     public boolean addArtist(String name, String country, String genre, int userId) {
+        if (name == null || name.trim().isEmpty()) {
+            return false;
+        }
+        
         String sql = "INSERT INTO artists (name, country, genre, user_id) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, name);
-            pstmt.setString(2, country);
-            pstmt.setString(3, genre);
-            pstmt.setInt(4, userId);
-            int affectedRows = pstmt.executeUpdate();
-            if (conn != null && !conn.getAutoCommit()) {
-                conn.commit();
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
             }
-            return affectedRows > 0;
+            
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name);
+            pstmt.setString(2, country != null ? country : "");
+            pstmt.setString(3, genre != null ? genre : "");
+            pstmt.setInt(4, userId);
+            
+            int affectedRows = pstmt.executeUpdate();
+            
+            if (affectedRows > 0) {
+                conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
+            }
+            
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -77,26 +123,67 @@ public class ArtistDAO {
      * @return true if update was successful
      */
     public boolean updateArtist(String oldName, String newName, String newCountry, String newGenre) {
+        if (oldName == null || oldName.trim().isEmpty() || newName == null || newName.trim().isEmpty()) {
+            return false;
+        }
+        
         String sql = "UPDATE artists SET name = ?, country = ?, genre = ? WHERE name = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, newName);
-            pstmt.setString(2, newCountry);
-            pstmt.setString(3, newGenre);
+            pstmt.setString(2, newCountry != null ? newCountry : "");
+            pstmt.setString(3, newGenre != null ? newGenre : "");
             pstmt.setString(4, oldName);
             
             int affectedRows = pstmt.executeUpdate();
             
-            // Only commit if we're not in auto-commit mode
-            if (conn != null && !conn.getAutoCommit()) {
+            if (affectedRows > 0) {
                 conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
             }
             
-            return affectedRows > 0;
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -106,23 +193,64 @@ public class ArtistDAO {
      * @return true if deleted successfully
      */
     public boolean deleteArtist(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return false;
+        }
+        
         String sql = "DELETE FROM artists WHERE name = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, name);
             
             int affectedRows = pstmt.executeUpdate();
             
-            // Only commit if we're not in auto-commit mode
-            if (conn != null && !conn.getAutoCommit()) {
+            if (affectedRows > 0) {
                 conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
             }
             
-            return affectedRows > 0;
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -156,47 +284,75 @@ public class ArtistDAO {
      * @return the created artist with ID
      */
     public Artist create(Artist artist) {
+        if (artist == null || artist.getName() == null || artist.getName().trim().isEmpty()) {
+            return null;
+        }
+
         String sql = "INSERT INTO artists (name, bio, user_id) VALUES (?, ?, ?)";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet generatedKeys = null;
+        boolean previousAutoCommit = false;
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return null;
+            }
             
-            boolean previousAutoCommit = conn.getAutoCommit();
+            previousAutoCommit = conn.getAutoCommit();
             if (previousAutoCommit) {
                 conn.setAutoCommit(false);
             }
             
+            pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             pstmt.setString(1, artist.getName());
-            pstmt.setString(2, artist.getBio());
+            pstmt.setString(2, artist.getBio() != null ? artist.getBio() : "");
             pstmt.setInt(3, artist.getUserId());
             
             int affectedRows = pstmt.executeUpdate();
             
             if (affectedRows > 0) {
-                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        artist.setId(generatedKeys.getInt(1));
-                        if (!previousAutoCommit) {
-                            conn.commit();
-                        }
-                        return artist;
-                    }
+                generatedKeys = pstmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    artist.setId(generatedKeys.getInt(1));
+                    conn.commit();
+                    return artist;
                 }
             }
             
-            if (!previousAutoCommit) {
+            if (previousAutoCommit) {
                 conn.rollback();
             }
             
-            // Restore auto-commit mode if we changed it
-            if (previousAutoCommit) {
-                conn.setAutoCommit(true);
-            }
+            return null;
         } catch (SQLException e) {
+            try {
+                if (conn != null && previousAutoCommit) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                if (generatedKeys != null) {
+                    generatedKeys.close();
+                }
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null) {
+                    if (previousAutoCommit) {
+                        conn.setAutoCommit(true);
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return null;
     }
 
     /**
@@ -205,25 +361,47 @@ public class ArtistDAO {
      * @return the artist, or null if not found
      */
     public Artist findById(int id) {
-        String sql = "SELECT * FROM artists WHERE id = ?";
+        if (id <= 0) {
+            return null;
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT * FROM artists WHERE id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return null;
+            }
             
+            pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, id);
+            rs = pstmt.executeQuery();
             
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Artist artist = mapResultSetToArtist(rs);
-                    loadRelatedData(artist);
-                    return artist;
-                }
+            if (rs.next()) {
+                Artist artist = mapResultSetToArtist(rs);
+                loadRelatedData(artist);
+                return artist;
+            } else {
+                return null;
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return null;
     }
 
     /**
@@ -232,25 +410,47 @@ public class ArtistDAO {
      * @return the artist, or null if not found
      */
     public Artist findByName(String name) {
-        String sql = "SELECT * FROM artists WHERE name = ?";
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT * FROM artists WHERE name = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return null;
+            }
             
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, name);
+            rs = pstmt.executeQuery();
             
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Artist artist = mapResultSetToArtist(rs);
-                    loadRelatedData(artist);
-                    return artist;
-                }
+            if (rs.next()) {
+                Artist artist = mapResultSetToArtist(rs);
+                loadRelatedData(artist);
+                return artist;
+            } else {
+                return null;
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return null;
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return null;
     }
 
     /**
@@ -260,17 +460,38 @@ public class ArtistDAO {
     public List<Artist> findAll() {
         String sql = "SELECT * FROM artists ORDER BY name";
         List<Artist> artists = new ArrayList<>();
+        Connection conn = null;
+        Statement stmt = null;
+        ResultSet rs = null;
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return artists;
+            }
             
-            while (rs.next()) {
-                Artist artist = mapResultSetToArtist(rs);
-                artists.add(artist);
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(sql);
+            
+            if (rs != null) {
+                while (rs.next()) {
+                    Artist artist = mapResultSetToArtist(rs);
+                    artists.add(artist);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
         
         return artists;
@@ -282,15 +503,28 @@ public class ArtistDAO {
      * @return a list of artists for the user
      */
     public List<Artist> findByUserId(int userId) {
+        if (userId <= 0) {
+            return new ArrayList<>();
+        }
+        
         String sql = "SELECT * FROM artists WHERE user_id = ? ORDER BY name";
         List<Artist> artists = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return artists;
+            }
             
+            pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, userId);
             
-            try (ResultSet rs = pstmt.executeQuery()) {
+            rs = pstmt.executeQuery();
+            
+            if (rs != null) {
                 while (rs.next()) {
                     Artist artist = mapResultSetToArtist(rs);
                     artists.add(artist);
@@ -298,6 +532,17 @@ public class ArtistDAO {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
         
         return artists;
@@ -309,22 +554,62 @@ public class ArtistDAO {
      * @return true if the update was successful, false otherwise
      */
     public boolean update(Artist artist) {
-        String sql = "UPDATE artists SET name = ?, bio = ? WHERE id = ?";
+        if (artist == null || artist.getName() == null || artist.getName().trim().isEmpty() || artist.getId() <= 0) {
+            return false;
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        String sql = "UPDATE artists SET name = ?, bio = ? WHERE id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, artist.getName());
-            pstmt.setString(2, artist.getBio());
+            pstmt.setString(2, artist.getBio() != null ? artist.getBio() : "");
             pstmt.setInt(3, artist.getId());
             
             int affectedRows = pstmt.executeUpdate();
-            return affectedRows > 0;
+            
+            if (affectedRows > 0) {
+                if (!autoCommit) {
+                    conn.commit();
+                }
+                return true;
+            } else {
+                if (!autoCommit) {
+                    conn.rollback();
+                }
+                return false;
+            }
         } catch (SQLException e) {
+            try {
+                if (conn != null && !conn.getAutoCommit()) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return false;
     }
 
     /**
@@ -333,20 +618,65 @@ public class ArtistDAO {
      * @return true if the deletion was successful, false otherwise
      */
     public boolean delete(int id) {
-        String sql = "DELETE FROM artists WHERE id = ?";
+        if (id <= 0) {
+            return false;
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        String sql = "DELETE FROM artists WHERE id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, id);
             
             int affectedRows = pstmt.executeUpdate();
-            return affectedRows > 0;
+            
+            if (affectedRows > 0) {
+                conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
+            }
+            
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return false;
     }
 
     /**
@@ -363,8 +693,13 @@ public class ArtistDAO {
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
-            while (rs.next()) {
-                artists.add(rs.getString("name"));
+            if (rs != null) {
+                while (rs.next()) {
+                    String name = rs.getString("name");
+                    if (name != null && !name.isEmpty()) {
+                        artists.add(name);
+                    }
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -372,15 +707,19 @@ public class ArtistDAO {
         
         // Also get artists from songs and albums (they might not be in the artists table)
         try {
-            for (Song song : songDAO.findAll()) {
-                if (song.getArtist() != null && !song.getArtist().isEmpty()) {
-                    artists.add(song.getArtist());
+            if (songDAO != null) {
+                for (Song song : songDAO.findAll()) {
+                    if (song != null && song.getArtist() != null && !song.getArtist().isEmpty()) {
+                        artists.add(song.getArtist());
+                    }
                 }
             }
             
-            for (Album album : albumDAO.findAll()) {
-                if (album.getArtist() != null && !album.getArtist().isEmpty()) {
-                    artists.add(album.getArtist());
+            if (albumDAO != null) {
+                for (Album album : albumDAO.findAll()) {
+                    if (album != null && album.getArtist() != null && !album.getArtist().isEmpty()) {
+                        artists.add(album.getArtist());
+                    }
                 }
             }
         } catch (Exception e) {

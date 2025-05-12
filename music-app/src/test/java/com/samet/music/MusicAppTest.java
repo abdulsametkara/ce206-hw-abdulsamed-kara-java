@@ -2,53 +2,97 @@ package com.samet.music;
 
 import static org.junit.Assert.*;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.samet.music.MusicApp;
-
+/**
+ * Test class for MusicApp
+ */
 public class MusicAppTest {
 
-  /**
-   * @brief This method is executed once before all test methods.
-   * @throws Exception
-   */
-  @BeforeClass
-  public static void setUpBeforeClass() throws Exception {
-  }
+    private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+    private final PrintStream originalOut = System.out;
 
-  /**
-   * @brief This method is executed once after all test methods.
-   * @throws Exception
-   */
-  @AfterClass
-  public static void tearDownAfterClass() throws Exception {
-  }
+    @Before
+    public void setUpStreams() {
+        System.setOut(new PrintStream(outContent));
+    }
 
-  /**
-   * @brief This method is executed before each test method.
-   * @throws Exception
-   */
-  @Before
-  public void setUp() throws Exception {
-  }
+    @After
+    public void restoreStreams() {
+        System.setOut(originalOut);
+    }
 
-  /**
-   * @brief This method is executed after each test method.
-   * @throws Exception
-   */
-  @After
-  public void tearDown() throws Exception {
-  }
-
-
-
+    /**
+     * Test that MusicApp class exists
+     */
+    @Test
+    public void testMusicAppClassExists() {
+        // Just verify that the MusicApp class can be loaded
+        MusicApp app = new MusicApp();
+        assertNotNull(app);
+    }
+    
+    /**
+     * Test that main method exists
+     */
+    @Test
+    public void testMainMethodExists() {
+        boolean hasMainMethod = false;
+        try {
+            MusicApp.class.getMethod("main", String[].class);
+            hasMainMethod = true;
+        } catch (NoSuchMethodException e) {
+            fail("Main method not found in MusicApp class");
+        }
+        
+        assertTrue("The MusicApp class should have a main method", hasMainMethod);
+    }
+    
+    /**
+     * Test that MusicApp class has required private methods
+     */
+    @Test
+    public void testRunGuiAppMethodExists() {
+        boolean hasRunGuiApp = false;
+        try {
+            Method method = MusicApp.class.getDeclaredMethod("runGuiApp");
+            hasRunGuiApp = true;
+        } catch (NoSuchMethodException e) {
+            // Method doesn't exist
+        }
+        
+        assertTrue("The MusicApp class should have a runGuiApp method", hasRunGuiApp);
+    }
+    
+    /**
+     * Test that runConsoleApp method exists
+     */
+    @Test
+    public void testRunConsoleAppMethodExists() {
+        boolean hasRunConsoleApp = false;
+        try {
+            Method method = MusicApp.class.getDeclaredMethod("runConsoleApp");
+            hasRunConsoleApp = true;
+        } catch (NoSuchMethodException e) {
+            // Method doesn't exist
+        }
+        
+        assertTrue("The MusicApp class should have a runConsoleApp method", hasRunConsoleApp);
+    }
+    
+    /**
+     * Test basic initialization of the app
+     */
+    @Test
+    public void testBasicInitialization() {
+        // Simple test to verify constructor and static initialization
+        MusicApp app = new MusicApp();
+        assertNotNull("App should be created without exceptions", app);
+    }
 }

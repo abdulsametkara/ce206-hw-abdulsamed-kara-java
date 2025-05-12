@@ -83,20 +83,66 @@ public class PlaylistDAO {
      * @return true if added successfully
      */
     public boolean addPlaylist(String name, String description, int userId) {
+        if (name == null || name.trim().isEmpty() || userId <= 0) {
+            return false;
+        }
+        
         String sql = "INSERT INTO playlists (name, description, user_id) VALUES (?, ?, ?)";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, name);
-            pstmt.setString(2, description);
-            pstmt.setInt(3, userId);
-            int affectedRows = pstmt.executeUpdate();
-            if (conn != null && !conn.getAutoCommit()) {
-                conn.commit();
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
             }
-            return affectedRows > 0;
+            
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name);
+            pstmt.setString(2, description != null ? description : "");
+            pstmt.setInt(3, userId);
+            
+            int affectedRows = pstmt.executeUpdate();
+            
+            if (affectedRows > 0) {
+                conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
+            }
+            
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -115,24 +161,66 @@ public class PlaylistDAO {
      * @return true if update was successful
      */
     public boolean updatePlaylist(String oldName, String newName) {
+        if (oldName == null || oldName.trim().isEmpty() || 
+            newName == null || newName.trim().isEmpty()) {
+            return false;
+        }
+        
         String sql = "UPDATE playlists SET name = ? WHERE name = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, newName);
             pstmt.setString(2, oldName);
             
             int affectedRows = pstmt.executeUpdate();
             
-            // Only commit if we're not in auto-commit mode
-            if (conn != null && !conn.getAutoCommit()) {
+            if (affectedRows > 0) {
                 conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
             }
             
-            return affectedRows > 0;
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -142,23 +230,64 @@ public class PlaylistDAO {
      * @return true if deleted successfully
      */
     public boolean deletePlaylist(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return false;
+        }
+        
         String sql = "DELETE FROM playlists WHERE name = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        boolean success = false;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
+            
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, name);
             
             int affectedRows = pstmt.executeUpdate();
             
-            // Only commit if we're not in auto-commit mode
-            if (conn != null && !conn.getAutoCommit()) {
+            if (affectedRows > 0) {
                 conn.commit();
+                success = true;
+            } else {
+                conn.rollback();
             }
             
-            return affectedRows > 0;
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
+            return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     
@@ -267,26 +396,48 @@ public class PlaylistDAO {
      * @return an Optional containing the playlist if found
      */
     public Optional<Playlist> findById(int id) {
-        String sql = "SELECT * FROM playlists WHERE id = ?";
+        if (id <= 0) {
+            return Optional.empty();
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT * FROM playlists WHERE id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return Optional.empty();
+            }
             
+            pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, id);
             
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Playlist playlist = mapResultSetToPlaylist(rs);
-                    
-                    // Get songs for this playlist
-                    List<Song> songs = getSongsByPlaylistId(id);
-                    playlist.setSongs(songs);
-                    
-                    return Optional.of(playlist);
-                }
+            rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                Playlist playlist = mapResultSetToPlaylist(rs);
+                
+                // Get songs for this playlist
+                List<Song> songs = getSongsByPlaylistId(id);
+                playlist.setSongs(songs);
+                
+                return Optional.of(playlist);
             }
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
         
         return Optional.empty();
@@ -358,15 +509,26 @@ public class PlaylistDAO {
      * @return true if the update was successful, false otherwise
      */
     public boolean update(Playlist playlist) {
-        String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
+        if (playlist == null || playlist.getName() == null || 
+            playlist.getName().trim().isEmpty() || playlist.getId() <= 0) {
+            return false;
+        }
         
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        String sql = "UPDATE playlists SET name = ?, description = ? WHERE id = ?";
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
             
             conn.setAutoCommit(false);
             
+            pstmt = conn.prepareStatement(sql);
             pstmt.setString(1, playlist.getName());
-            pstmt.setString(2, playlist.getDescription());
+            pstmt.setString(2, playlist.getDescription() != null ? playlist.getDescription() : "");
             pstmt.setInt(3, playlist.getId());
             
             int affectedRows = pstmt.executeUpdate();
@@ -375,10 +537,14 @@ public class PlaylistDAO {
                 // Update the songs in the playlist
                 if (playlist.getSongs() != null) {
                     // First remove all existing songs
-                    removeSongsFromPlaylist(conn, playlist.getId());
+                    if (!removeSongsFromPlaylist(conn, playlist.getId())) {
+                        conn.rollback();
+                        return false;
+                    }
                     
                     // Then add the current songs if any
-                    if (!playlist.getSongs().isEmpty() && !addSongsToPlaylist(conn, playlist.getId(), playlist.getSongs())) {
+                    if (!playlist.getSongs().isEmpty() && 
+                        !addSongsToPlaylist(conn, playlist.getId(), playlist.getSongs())) {
                         conn.rollback();
                         return false;
                     }
@@ -389,11 +555,29 @@ public class PlaylistDAO {
             }
             
             conn.rollback();
+            return false;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return false;
     }
 
     /**
@@ -402,32 +586,64 @@ public class PlaylistDAO {
      * @return true if the deletion was successful, false otherwise
      */
     public boolean delete(int id) {
-        try (Connection conn = DatabaseUtil.getConnection()) {
+        if (id <= 0) {
+            return false;
+        }
+        
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
+            
             conn.setAutoCommit(false);
             
-        // First remove all songs from the playlist
-            removeSongsFromPlaylist(conn, id);
+            // First remove all songs from the playlist
+            if (!removeSongsFromPlaylist(conn, id)) {
+                conn.rollback();
+                return false;
+            }
         
             // Then delete the playlist
-        String sql = "DELETE FROM playlists WHERE id = ?";
+            String sql = "DELETE FROM playlists WHERE id = ?";
             
-            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt = conn.prepareStatement(sql);
             pstmt.setInt(1, id);
             
             int affectedRows = pstmt.executeUpdate();
             
             if (affectedRows > 0) {
-                    conn.commit();
+                conn.commit();
                 return true;
-                }
-                
-                conn.rollback();
             }
+                
+            conn.rollback();
+            return false;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (pstmt != null) {
+                    pstmt.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return false;
     }
 
     /**
@@ -437,8 +653,22 @@ public class PlaylistDAO {
      * @return true if the addition was successful, false otherwise
      */
     public boolean addSongsToPlaylist(int playlistId, List<Song> songs) {
-        try (Connection conn = DatabaseUtil.getConnection()) {
-            conn.setAutoCommit(false);
+        if (playlistId <= 0 || songs == null || songs.isEmpty()) {
+            return false;
+        }
+        
+        Connection conn = null;
+        
+        try {
+            conn = DatabaseUtil.getConnection();
+            if (conn == null) {
+                return false;
+            }
+            
+            boolean autoCommit = conn.getAutoCommit();
+            if (autoCommit) {
+                conn.setAutoCommit(false);
+            }
             
             boolean success = addSongsToPlaylist(conn, playlistId, songs);
             
@@ -448,12 +678,30 @@ public class PlaylistDAO {
                 conn.rollback();
             }
             
+            if (autoCommit) {
+                conn.setAutoCommit(true);
+            }
+            
             return success;
         } catch (SQLException e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (conn != null && conn.getAutoCommit() == false) {
+                    conn.setAutoCommit(true);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
-        
-        return false;
     }
     
     /**

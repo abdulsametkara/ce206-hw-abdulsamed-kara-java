@@ -15,7 +15,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -28,815 +27,1139 @@ import com.samet.music.model.User;
 import com.samet.music.service.RecommendationService;
 
 /**
- * Test sınıfı - gerekli yerlerde mock kullanarak test eder
+ * Comprehensive test class for SongController with mocks
  */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class SongControllerTest {
 
     private SongController songController;
-    private TestUserController userController;
-    private TestSongDAO songDAO;
     
     @Mock
-    private RecommendationService mockRecommendationService;
+    private UserController userController;
     
     @Mock
-    private UserSongStatisticsDAO mockUserSongStatisticsDAO;
+    private SongDAO songDAO;
+    
+    @Mock
+    private UserSongStatisticsDAO userSongStatisticsDAO;
+    
+    @Mock
+    private RecommendationService recommendationService;
+    
+    private User testUser;
     
     @Before
-    public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
         
-        userController = new TestUserController();
-        songDAO = new TestSongDAO();
+        // Set up test user
+        testUser = new User();
+        testUser.setId(1);
+        testUser.setUsername("testuser");
+        
+        // Mock userController behavior
+        lenient().when(userController.getCurrentUser()).thenReturn(testUser);
+        lenient().when(userController.isLoggedIn()).thenReturn(true);
+        
+        // Create SongController with mocked dependencies
         songController = new SongController(userController);
         songController.setSongDAO(songDAO);
         
-        // Set the mocked recommendation service using reflection since there's no setter
+        // Use reflection to inject mock dependencies
         try {
+            java.lang.reflect.Field userSongStatisticsDAOField = SongController.class.getDeclaredField("userSongStatisticsDAO");
+            userSongStatisticsDAOField.setAccessible(true);
+            userSongStatisticsDAOField.set(songController, userSongStatisticsDAO);
+            
             java.lang.reflect.Field recommendationServiceField = SongController.class.getDeclaredField("recommendationService");
             recommendationServiceField.setAccessible(true);
-            recommendationServiceField.set(songController, mockRecommendationService);
+            recommendationServiceField.set(songController, recommendationService);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        
-        // Diğer dependency'leri reflection ile değiştir
-        java.lang.reflect.Field userSongStatisticsDAOField = SongController.class.getDeclaredField("userSongStatisticsDAO");
-        userSongStatisticsDAOField.setAccessible(true);
-        userSongStatisticsDAOField.set(songController, mockUserSongStatisticsDAO);
     }
     
     @Test
-    public void testAddSong() {
-        // Create a test subclass of SongController that bypasses file validation
-        SongController testController = new SongController(userController) {
-            @Override
-            protected boolean isValidFile(String filePath) {
-                return true;
-            }
-        };
-        testController.setSongDAO(songDAO);
+    public void testGetMostLikelyToEnjoySongs() {
+        // Arrange
+        List<Song> expectedSongs = new ArrayList<>();
+        expectedSongs.add(new Song("Enjoyable Song", "Artist", "Album", "Genre", 2023, 180, "path.mp3", 1));
         
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
+        when(recommendationService.getMostLikelyToEnjoySongs(eq(testUser), eq(10)))
+            .thenReturn(expectedSongs);
         
-        // Test için mock bir şarkı oluştur ve SongDAO içinde kaydet
-        Song expectedSong = new Song("TestSong", "TestArtist", "TestAlbum", "Rock", 2023, 180, "test.mp3", 1);
-        expectedSong.setId(1);
-        songDAO.setTestSongToReturn(expectedSong);
+        // Act
+        List<Song> result = songController.getMostLikelyToEnjoySongs();
         
-        // Test
-        Song result = testController.addSong("TestSong", "TestArtist", "TestAlbum", "Rock", 2023, 180, "test.mp3");
-        
-        // Doğrulama
-        assertNotNull("Şarkı nesnesi oluşturulmalı", result);
-        assertEquals("Şarkı adı doğru olmalı", "TestSong", result.getTitle());
-        assertEquals("Şarkı sanatçısı doğru olmalı", "TestArtist", result.getArtist());
-        assertEquals("Şarkı albümü doğru olmalı", "TestAlbum", result.getAlbum());
-        assertEquals("Şarkı türü doğru olmalı", "Rock", result.getGenre());
-        assertEquals("Şarkı yılı doğru olmalı", 2023, result.getYear());
-        assertEquals("Şarkı süresi doğru olmalı", 180, result.getDuration());
-        assertEquals("Şarkı dosya yolu doğru olmalı", "test.mp3", result.getFilePath());
-        assertEquals("Şarkı kullanıcı ID'si doğru olmalı", 1, result.getUserId());
+        // Assert
+        assertEquals("Should return songs from recommendation service", expectedSongs, result);
+        verify(recommendationService).getMostLikelyToEnjoySongs(testUser, 10);
     }
     
     @Test
-    public void testAddSongWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
+    public void testGetMostLikelyToEnjoySongs_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
         
-        // Test
-        Song result = songController.addSong("TestSong", "TestArtist", "TestAlbum", "Rock", 2023, 180, "test.mp3");
+        // Act
+        List<Song> result = songController.getMostLikelyToEnjoySongs();
         
-        // Doğrulama
-        assertNull("Kullanıcı oturumu yokken şarkı oluşturulmamalı", result);
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(recommendationService, never()).getMostLikelyToEnjoySongs(any(), anyInt());
     }
     
     @Test
-    public void testUpdateSong() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
+    public void testGetUserStatistics() {
+        // Arrange
+        Map<String, Object> expectedStats = new HashMap<>();
+        expectedStats.put("totalSongs", 10);
+        expectedStats.put("totalPlayTime", 1800);
+        expectedStats.put("favoritesCount", 5);
         
-        // Test şarkısını ekle
-        Song testSong = new Song();
-        testSong.setId(1);
-        testSong.setUserId(1);
-        songDAO.addTestSong(testSong);
+        when(userSongStatisticsDAO.getUserStatistics(testUser.getId()))
+            .thenReturn(expectedStats);
         
-        // Test
-        boolean result = songController.updateSong(1, "UpdatedTitle", "UpdatedArtist", "UpdatedAlbum", "UpdatedGenre", 2024);
+        // Act
+        Map<String, Object> result = songController.getUserStatistics();
         
-        // Doğrulama
-        assertTrue("Şarkı güncelleme başarılı olmalı", result);
+        // Assert
+        assertEquals("Should return statistics from DAO", expectedStats, result);
+        verify(userSongStatisticsDAO).getUserStatistics(testUser.getId());
     }
     
     @Test
-    public void testUpdateSongWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        boolean result = songController.updateSong(1, "UpdatedTitle", "UpdatedArtist", "UpdatedAlbum", "UpdatedGenre", 2024);
-        
-        // Doğrulama
-        assertFalse("Kullanıcı oturumu yokken şarkı güncellenememeli", result);
-    }
-    
-    @Test
-    public void testUpdateSongWithWrongUser() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Farklı kullanıcı ID'sine sahip test şarkısı ekle
-        Song testSong = new Song();
-        testSong.setId(1);
-        testSong.setUserId(2); // farklı kullanıcı ID'si
-        songDAO.addTestSong(testSong);
-        
-        // Test
-        boolean result = songController.updateSong(1, "UpdatedTitle", "UpdatedArtist", "UpdatedAlbum", "UpdatedGenre", 2024);
-        
-        // Doğrulama
-        assertFalse("Başka kullanıcının şarkısı güncellenememeli", result);
-    }
-    
-    @Test
-    public void testDeleteSong() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test şarkısını ekle
-        Song testSong = new Song();
-        testSong.setId(1);
-        testSong.setUserId(1);
-        songDAO.addTestSong(testSong);
-        
-        // Test
-        boolean result = songController.deleteSong(1);
-        
-        // Doğrulama
-        assertTrue("Şarkı silme başarılı olmalı", result);
-    }
-    
-    @Test
-    public void testDeleteSongWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        boolean result = songController.deleteSong(1);
-        
-        // Doğrulama
-        assertFalse("Kullanıcı oturumu yokken şarkı silinememeli", result);
-    }
-    
-    @Test
-    public void testDeleteSongWithWrongUser() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Farklı kullanıcı ID'sine sahip test şarkısı ekle
-        Song testSong = new Song();
-        testSong.setId(1);
-        testSong.setUserId(2); // farklı kullanıcı ID'si
-        songDAO.addTestSong(testSong);
-        
-        // Test
-        boolean result = songController.deleteSong(1);
-        
-        // Doğrulama
-        assertFalse("Başka kullanıcının şarkısı silinememeli", result);
-    }
-    
-    @Test
-    public void testGetUserSongs() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test şarkılarını ekle
-        Song song1 = new Song();
-        song1.setId(1);
-        song1.setUserId(1);
-        song1.setTitle("Song1");
-        
-        Song song2 = new Song();
-        song2.setId(2);
-        song2.setUserId(1);
-        song2.setTitle("Song2");
-        
-        songDAO.addTestSong(song1);
-        songDAO.addTestSong(song2);
-        
-        // Test
-        List<Song> result = songController.getUserSongs();
-        
-        // Doğrulama
-        assertNotNull("Şarkı listesi null olmamalı", result);
-        assertEquals("Şarkı listesi 2 şarkı içermeli", 2, result.size());
-    }
-    
-    @Test
-    public void testGetUserSongsWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        List<Song> result = songController.getUserSongs();
-        
-        // Doğrulama
-        assertTrue("Kullanıcı oturumu yokken şarkı listesi boş olmalı", result.isEmpty());
-    }
-    
-    @Test
-    public void testSearchSongs() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test şarkılarını ekle
-        Song song1 = new Song();
-        song1.setId(1);
-        song1.setUserId(1);
-        song1.setTitle("Rock Song");
-        song1.setGenre("Rock");
-        
-        Song song2 = new Song();
-        song2.setId(2);
-        song2.setUserId(1);
-        song2.setTitle("Pop Song");
-        song2.setGenre("Pop");
-        
-        songDAO.addTestSong(song1);
-        songDAO.addTestSong(song2);
-        songDAO.setSearchResults(List.of(song1, song2));
-        
-        // Test
-        List<Song> result = songController.searchSongs("Rock");
-        
-        // Doğrulama
-        assertNotNull("Arama sonucu null olmamalı", result);
-        assertEquals("Arama sonucu doğru sayıda şarkı içermeli", 2, result.size());
-    }
-    
-    @Test
-    public void testSearchSongsWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        List<Song> result = songController.searchSongs("Rock");
-        
-        // Doğrulama
-        assertTrue("Kullanıcı oturumu yokken arama sonucu boş olmalı", result.isEmpty());
-    }
-    
-    @Test
-    public void testGetRecommendations() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Setup mock recommendations
-        List<Song> mockRecommendations = new ArrayList<>();
-        Song recommendedSong = new Song();
-        recommendedSong.setId(100);
-        recommendedSong.setTitle("Recommended Song");
-        recommendedSong.setArtist("Recommended Artist");
-        mockRecommendations.add(recommendedSong);
-        
-        // Configure the mock to return these recommendations
-        when(mockRecommendationService.getSongRecommendations(eq(testUser), anyInt())).thenReturn(mockRecommendations);
-        
-        // Test
-        List<Song> result = songController.getRecommendations();
-        
-        // Doğrulama
-        assertNotNull("Öneri listesi null olmamalı", result);
-        assertTrue("Öneri listesi boş olmamalı", !result.isEmpty());
-        assertEquals("Recommended Song", result.get(0).getTitle());
-    }
-    
-    @Test
-    public void testGetRecommendationsWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        List<Song> result = songController.getRecommendations();
-        
-        // Doğrulama
-        assertTrue("Kullanıcı oturumu yokken öneri listesi boş olmalı", result.isEmpty());
-    }
-    
-    @Test
-    public void testGetSongsByArtist() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test şarkılarını ekle
-        Song song1 = new Song();
-        song1.setId(1);
-        song1.setUserId(1);
-        song1.setTitle("Song1");
-        song1.setArtist("Artist1");
-        
-        Song song2 = new Song();
-        song2.setId(2);
-        song2.setUserId(1);
-        song2.setTitle("Song2");
-        song2.setArtist("Artist1");
-        
-        Song song3 = new Song();
-        song3.setId(3);
-        song3.setUserId(1);
-        song3.setTitle("Song3");
-        song3.setArtist("Artist2");
-        
-        songDAO.addTestSong(song1);
-        songDAO.addTestSong(song2);
-        songDAO.addTestSong(song3);
-        
-        // Test
-        List<Song> result = songController.getSongsByArtist("Artist1");
-        
-        // Doğrulama
-        assertNotNull("Şarkı listesi null olmamalı", result);
-        assertEquals("Artist1 için 2 şarkı olmalı", 2, result.size());
-    }
-    
-    @Test
-    public void testGetSongsByArtistWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        List<Song> result = songController.getSongsByArtist("Artist1");
-        
-        // Doğrulama
-        assertTrue("Kullanıcı oturumu yokken şarkı listesi boş olmalı", result.isEmpty());
-    }
-    
-    @Test
-    public void testAddArtist() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test
-        boolean result = songController.addArtist("NewArtist");
-        
-        // Doğrulama
-        assertTrue("Artist ekleme başarılı olmalı", result);
-    }
-    
-    @Test
-    public void testAddArtistWithEmptyName() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test
-        boolean result = songController.addArtist("");
-        
-        // Doğrulama
-        assertFalse("Boş artist adı eklenememeli", result);
-    }
-    
-    @Test
-    public void testAddArtistWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        boolean result = songController.addArtist("Artist");
-        
-        // Doğrulama
-        assertFalse("Kullanıcı oturumu yokken artist eklenememeli", result);
-    }
-    
-    @Test
-    public void testAddAlbum() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test
-        Album result = songController.addAlbum("AlbumTitle", "AlbumArtist", 2023, "Rock");
-        
-        // Doğrulama
-        assertNotNull("Album nesnesi oluşturulmalı", result);
-        assertEquals("Album başlığı doğru olmalı", "AlbumTitle", result.getTitle());
-        assertEquals("Album sanatçısı doğru olmalı", "AlbumArtist", result.getArtist());
-        assertEquals("Album yılı doğru olmalı", 2023, result.getYear());
-        assertEquals("Album türü doğru olmalı", "Rock", result.getGenre());
-        assertEquals("Album kullanıcı ID'si doğru olmalı", 1, result.getUserId());
-    }
-    
-    @Test
-    public void testAddAlbumWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        Album result = songController.addAlbum("AlbumTitle", "AlbumArtist", 2023, "Rock");
-        
-        // Doğrulama
-        assertNull("Kullanıcı oturumu yokken album oluşturulmamalı", result);
-    }
-    
-    @Test
-    public void testGetUserAlbums() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test
-        List<Album> result = songController.getUserAlbums();
-        
-        // Doğrulama
-        assertNotNull("Album listesi null olmamalı", result);
-        assertTrue("Album listesi başlangıçta boş olmalı", result.isEmpty());
-    }
-    
-    @Test
-    public void testGetUserAlbumsWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        List<Album> result = songController.getUserAlbums();
-        
-        // Doğrulama
-        assertTrue("Kullanıcı oturumu yokken album listesi boş olmalı", result.isEmpty());
-    }
-    
-    @Test
-    public void testDeleteAlbum() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test
-        boolean result = songController.deleteAlbum(1);
-        
-        // Doğrulama
-        assertTrue("Album silme başarılı olmalı", result);
-    }
-    
-    @Test
-    public void testDeleteAlbumWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        boolean result = songController.deleteAlbum(1);
-        
-        // Doğrulama
-        assertFalse("Kullanıcı oturumu yokken album silinememeli", result);
-    }
-    
-    @Test
-    public void testAddSongToAlbum() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test
-        boolean result = songController.addSongToAlbum(1, 1);
-        
-        // Doğrulama
-        assertTrue("Albüme şarkı ekleme başarılı olmalı", result);
-    }
-    
-    @Test
-    public void testAddSongToAlbumWhenNoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        boolean result = songController.addSongToAlbum(1, 1);
-        
-        // Doğrulama
-        assertFalse("Kullanıcı oturumu yokken albüme şarkı eklenememeli", result);
-    }
-    
-    @Test
-    public void testGetEnhancedRecommendations_Success() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test verisi
-        Map<Song, String> expectedRecommendations = new HashMap<>();
-        expectedRecommendations.put(
-            new Song("Recommended Song", "Recommended Artist", "Recommended Album", "Jazz", 2023, 210, "path/to/file", 3),
-            "Because you like Jazz music"
-        );
-        
-        // Mock davranışları
-        when(mockRecommendationService.getEnhancedSongRecommendations(eq(testUser), anyInt())).thenReturn(expectedRecommendations);
-        
-        // Test
-        Map<Song, String> result = songController.getEnhancedRecommendations();
-        
-        // Doğrulama
-        assertEquals(expectedRecommendations, result);
-        verify(mockRecommendationService).getEnhancedSongRecommendations(eq(testUser), anyInt());
-    }
-    
-    @Test
-    public void testGetEnhancedRecommendations_NoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
-        
-        // Test
-        Map<Song, String> result = songController.getEnhancedRecommendations();
-        
-        // Doğrulama
-        assertTrue(result.isEmpty());
-        verifyNoInteractions(mockRecommendationService);
+    public void testGetUserStatistics_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        Map<String, Object> result = songController.getUserStatistics();
+        
+        // Assert
+        assertTrue("Should return empty map when no user is logged in", result.isEmpty());
+        verify(userSongStatisticsDAO, never()).getUserStatistics(anyInt());
     }
     
     @Test
     public void testPlaySong_Success() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
+        // Arrange
+        int songId = 1;
+        Song expectedSong = new Song("Test Song", "Test Artist", "Test Album", "Rock", 2023, 180, "path.mp3", 2);
+        expectedSong.setId(songId);
         
-        // Test şarkısını ekle
-        Song testSong = new Song();
-        testSong.setId(1);
-        testSong.setUserId(1);
-        testSong.setTitle("Test Song");
-        songDAO.addTestSong(testSong);
+        when(songDAO.findById(songId)).thenReturn(Optional.of(expectedSong));
+        when(userSongStatisticsDAO.incrementPlayCount(testUser.getId(), songId)).thenReturn(true);
         
-        // Mock davranışları
-        when(mockUserSongStatisticsDAO.incrementPlayCount(testUser.getId(), 1)).thenReturn(true);
+        // Act
+        Song result = songController.playSong(songId);
         
-        // Test
-        Song result = songController.playSong(1);
-        
-        // Doğrulama
-        assertNotNull("Çalınan şarkı null olmamalı", result);
-        assertEquals("Çalınan şarkı ID'si doğru olmalı", 1, result.getId());
-        verify(mockUserSongStatisticsDAO).incrementPlayCount(testUser.getId(), 1);
+        // Assert
+        assertNotNull("Should return the played song", result);
+        assertEquals("Should return correct song", expectedSong, result);
+        verify(userSongStatisticsDAO).incrementPlayCount(testUser.getId(), songId);
     }
     
     @Test
     public void testPlaySong_NoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
         
-        // Test
+        // Act
         Song result = songController.playSong(1);
         
-        // Doğrulama
-        assertNull("Kullanıcı oturumu yokken şarkı çalınamamalı", result);
-        verifyNoInteractions(mockUserSongStatisticsDAO);
+        // Assert
+        assertNull("Should return null when no user is logged in", result);
+        verify(userSongStatisticsDAO, never()).incrementPlayCount(anyInt(), anyInt());
     }
     
     @Test
     public void testPlaySong_SongNotFound() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
+        // Arrange
+        int songId = 999;
+        when(songDAO.findById(songId)).thenReturn(Optional.empty());
         
-        // Test
-        Song result = songController.playSong(999); // Var olmayan şarkı ID'si
+        // Act
+        Song result = songController.playSong(songId);
         
-        // Doğrulama
-        assertNull("Var olmayan şarkı çalınamamalı", result);
-        verifyNoInteractions(mockUserSongStatisticsDAO);
+        // Assert
+        assertNull("Should return null when song is not found", result);
+        verify(userSongStatisticsDAO, never()).incrementPlayCount(anyInt(), anyInt());
     }
     
     @Test
-    public void testToggleFavorite_Success() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
+    public void testGetRecentlyPlayedSongs() {
+        // Arrange
+        int limit = 3;
+        List<Integer> recentSongIds = new ArrayList<>();
+        recentSongIds.add(1);
+        recentSongIds.add(2);
+        recentSongIds.add(3);
         
-        // Test şarkısını ekle
-        Song testSong = new Song();
-        testSong.setId(1);
-        testSong.setUserId(1);
-        songDAO.addTestSong(testSong);
+        Song song1 = new Song("Recent 1", "Artist 1", "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId());
+        song1.setId(1);
         
-        // Mock davranışları
-        when(mockUserSongStatisticsDAO.setFavorite(testUser.getId(), 1, true)).thenReturn(true);
+        Song song2 = new Song("Recent 2", "Artist 2", "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId());
+        song2.setId(2);
         
-        // Test
-        boolean result = songController.toggleFavorite(1, true);
+        Song song3 = new Song("Recent 3", "Artist 3", "Album 3", "Genre 3", 2023, 180, "path3.mp3", testUser.getId());
+        song3.setId(3);
         
-        // Doğrulama
-        assertTrue("Favoriye ekleme başarılı olmalı", result);
-        verify(mockUserSongStatisticsDAO).setFavorite(testUser.getId(), 1, true);
+        when(userSongStatisticsDAO.getRecentlyPlayedSongs(testUser.getId(), limit)).thenReturn(recentSongIds);
+        when(songDAO.findById(1)).thenReturn(Optional.of(song1));
+        when(songDAO.findById(2)).thenReturn(Optional.of(song2));
+        when(songDAO.findById(3)).thenReturn(Optional.of(song3));
+        
+        // Act
+        List<Song> result = songController.getRecentlyPlayedSongs(limit);
+        
+        // Assert
+        assertEquals("Should return correct number of recently played songs", 3, result.size());
+        assertEquals("Should return recent songs in correct order", "Recent 1", result.get(0).getTitle());
+        assertEquals("Should return recent songs in correct order", "Recent 2", result.get(1).getTitle());
+        assertEquals("Should return recent songs in correct order", "Recent 3", result.get(2).getTitle());
+        verify(userSongStatisticsDAO).getRecentlyPlayedSongs(testUser.getId(), limit);
+    }
+    
+    @Test
+    public void testGetRecentlyPlayedSongs_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Song> result = songController.getRecentlyPlayedSongs(5);
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(userSongStatisticsDAO, never()).getRecentlyPlayedSongs(anyInt(), anyInt());
+    }
+    
+    @Test
+    public void testGetSongsByArtist() {
+        // Arrange
+        String artistName = "Test Artist";
+        List<Song> userSongs = new ArrayList<>();
+        
+        Song song1 = new Song("Song 1", artistName, "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId());
+        Song song2 = new Song("Song 2", artistName, "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId());
+        Song song3 = new Song("Song 3", "Different Artist", "Album 3", "Genre 3", 2023, 180, "path3.mp3", testUser.getId());
+        
+        userSongs.add(song1);
+        userSongs.add(song2);
+        userSongs.add(song3);
+        
+        when(songDAO.findByUserId(testUser.getId())).thenReturn(userSongs);
+        
+        // Act
+        List<Song> result = songController.getSongsByArtist(artistName);
+        
+        // Assert
+        assertEquals("Should return only songs by the specified artist", 2, result.size());
+        assertEquals("Should return song with matching artist", artistName, result.get(0).getArtist());
+        assertEquals("Should return song with matching artist", artistName, result.get(1).getArtist());
+        verify(songDAO).findByUserId(testUser.getId());
+    }
+    
+    @Test
+    public void testGetSongsByArtist_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Song> result = songController.getSongsByArtist("Any Artist");
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(songDAO, never()).findByUserId(anyInt());
+    }
+    
+    @Test
+    public void testGetArtists() {
+        // Arrange
+        List<Song> userSongs = new ArrayList<>();
+        
+        Song song1 = new Song("Song 1", "Artist 1", "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId());
+        Song song2 = new Song("Song 2", "Artist 2", "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId());
+        Song song3 = new Song("Song 3", "Artist 1", "Album 3", "Genre 3", 2023, 180, "path3.mp3", testUser.getId());
+        Song song4 = new Song("Song 4", null, "Album 4", "Genre 4", 2023, 180, "path4.mp3", testUser.getId());
+        Song song5 = new Song("Song 5", "", "Album 5", "Genre 5", 2023, 180, "path5.mp3", testUser.getId());
+        
+        userSongs.add(song1);
+        userSongs.add(song2);
+        userSongs.add(song3);
+        userSongs.add(song4);
+        userSongs.add(song5);
+        
+        when(songDAO.findByUserId(testUser.getId())).thenReturn(userSongs);
+        
+        // Act
+        List<String> result = songController.getArtists();
+        
+        // Assert
+        assertEquals("Should return unique artist names", 2, result.size());
+        assertTrue("Should contain Artist 1", result.contains("Artist 1"));
+        assertTrue("Should contain Artist 2", result.contains("Artist 2"));
+        verify(songDAO).findByUserId(testUser.getId());
+    }
+    
+    @Test
+    public void testGetArtists_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<String> result = songController.getArtists();
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(songDAO, never()).findByUserId(anyInt());
+    }
+    
+    @Test
+    public void testGetUserArtists() {
+        // Arrange
+        List<Song> userSongs = new ArrayList<>();
+        
+        Song song1 = new Song("Song 1", "Artist 1", "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId());
+        Song song2 = new Song("Song 2", "Artist 2", "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId());
+        
+        userSongs.add(song1);
+        userSongs.add(song2);
+        
+        when(songDAO.findByUserId(testUser.getId())).thenReturn(userSongs);
+        
+        // Act
+        List<String> result = songController.getUserArtists();
+        
+        // Assert
+        assertEquals("Should return same result as getArtists()", 2, result.size());
+        assertTrue("Should contain Artist 1", result.contains("Artist 1"));
+        assertTrue("Should contain Artist 2", result.contains("Artist 2"));
+        verify(songDAO).findByUserId(testUser.getId());
+    }
+    
+    @Test
+    public void testToggleFavorite_AddFavorite() {
+        // Arrange
+        int songId = 1;
+        
+        Song song = new Song("Test Song", "Artist", "Album", "Genre", 2023, 180, "path.mp3", testUser.getId());
+        song.setId(songId);
+        
+        when(songDAO.findById(songId)).thenReturn(Optional.of(song));
+        when(userSongStatisticsDAO.setFavorite(testUser.getId(), songId, true)).thenReturn(true);
+        
+        // Act
+        boolean result = songController.toggleFavorite(songId, true);
+        
+        // Assert
+        assertTrue("Should return true indicating successful addition to favorites", result);
+        verify(userSongStatisticsDAO).setFavorite(testUser.getId(), songId, true);
+    }
+    
+    @Test
+    public void testToggleFavorite_RemoveFavorite() {
+        // Arrange
+        int songId = 1;
+        
+        Song song = new Song("Test Song", "Artist", "Album", "Genre", 2023, 180, "path.mp3", testUser.getId());
+        song.setId(songId);
+        
+        when(songDAO.findById(songId)).thenReturn(Optional.of(song));
+        when(userSongStatisticsDAO.setFavorite(testUser.getId(), songId, false)).thenReturn(true);
+        
+        // Act
+        boolean result = songController.toggleFavorite(songId, false);
+        
+        // Assert
+        assertTrue("Should return true indicating successful removal from favorites", result);
+        verify(userSongStatisticsDAO).setFavorite(testUser.getId(), songId, false);
     }
     
     @Test
     public void testToggleFavorite_NoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
         
-        // Test
+        // Act
         boolean result = songController.toggleFavorite(1, true);
         
-        // Doğrulama
-        assertFalse("Kullanıcı oturumu yokken favori eklenememeli", result);
-        verifyNoInteractions(mockUserSongStatisticsDAO);
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+        verify(userSongStatisticsDAO, never()).setFavorite(anyInt(), anyInt(), anyBoolean());
+    }
+    
+    @Test
+    public void testToggleFavorite_SongNotFound() {
+        // Arrange
+        int songId = 999;
+        when(songDAO.findById(songId)).thenReturn(Optional.empty());
+        
+        // Act
+        boolean result = songController.toggleFavorite(songId, true);
+        
+        // Assert
+        assertFalse("Should return false when song is not found", result);
+        verify(userSongStatisticsDAO, never()).setFavorite(anyInt(), anyInt(), anyBoolean());
+    }
+    
+    @Test
+    public void testIsFavorite_WhenFavorite() {
+        // Arrange
+        int songId = 1;
+        when(userSongStatisticsDAO.isFavorite(testUser.getId(), songId)).thenReturn(true);
+        
+        // Act
+        boolean result = songController.isFavorite(songId);
+        
+        // Assert
+        assertTrue("Should return true for favorite song", result);
+        verify(userSongStatisticsDAO).isFavorite(testUser.getId(), songId);
+    }
+    
+    @Test
+    public void testIsFavorite_WhenNotFavorite() {
+        // Arrange
+        int songId = 1;
+        when(userSongStatisticsDAO.isFavorite(testUser.getId(), songId)).thenReturn(false);
+        
+        // Act
+        boolean result = songController.isFavorite(songId);
+        
+        // Assert
+        assertFalse("Should return false for non-favorite song", result);
+        verify(userSongStatisticsDAO).isFavorite(testUser.getId(), songId);
+    }
+    
+    @Test
+    public void testIsFavorite_WhenNoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        boolean result = songController.isFavorite(1);
+        
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+        verify(userSongStatisticsDAO, never()).isFavorite(anyInt(), anyInt());
     }
     
     @Test
     public void testGetFavoriteSongs_Success() {
-        // Test kullanıcısını ayarla
-        User testUser = new User();
-        testUser.setId(1);
-        testUser.setUsername("testuser");
-        userController.setCurrentUser(testUser);
-        
-        // Test verisi
+        // Arrange
         List<Integer> favoriteSongIds = new ArrayList<>();
         favoriteSongIds.add(1);
         favoriteSongIds.add(2);
         
-        Song song1 = new Song("Favorite 1", "Artist 1", "Album 1", "Rock", 2023, 180, "path/to/file1", testUser.getId());
+        Song song1 = new Song("Fav 1", "Artist 1", "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId());
         song1.setId(1);
-        Song song2 = new Song("Favorite 2", "Artist 2", "Album 2", "Pop", 2022, 200, "path/to/file2", testUser.getId());
+        
+        Song song2 = new Song("Fav 2", "Artist 2", "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId());
         song2.setId(2);
         
-        songDAO.addTestSong(song1);
-        songDAO.addTestSong(song2);
+        when(userSongStatisticsDAO.getFavoriteSongs(testUser.getId())).thenReturn(favoriteSongIds);
+        when(songDAO.findById(1)).thenReturn(Optional.of(song1));
+        when(songDAO.findById(2)).thenReturn(Optional.of(song2));
         
-        // Mock davranışları
-        when(mockUserSongStatisticsDAO.getFavoriteSongs(testUser.getId())).thenReturn(favoriteSongIds);
-        
-        // Test
+        // Act
         List<Song> result = songController.getFavoriteSongs();
         
-        // Doğrulama
-        assertEquals("Favori şarkı sayısı doğru olmalı", 2, result.size());
-        assertEquals("İlk favori şarkı doğru olmalı", 1, result.get(0).getId());
-        assertEquals("İkinci favori şarkı doğru olmalı", 2, result.get(1).getId());
-        verify(mockUserSongStatisticsDAO).getFavoriteSongs(testUser.getId());
+        // Assert
+        assertEquals("Should return correct number of favorite songs", 2, result.size());
+        assertEquals("Should return favorite songs", "Fav 1", result.get(0).getTitle());
+        assertEquals("Should return favorite songs", "Fav 2", result.get(1).getTitle());
+        verify(userSongStatisticsDAO).getFavoriteSongs(testUser.getId());
     }
     
     @Test
-    public void testGetFavoriteSongs_NoUserLoggedIn() {
-        // Kullanıcı oturumu yok
-        userController.setCurrentUser(null);
+    public void testGetFavoriteSongs_WhenNoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
         
-        // Test
+        // Act
         List<Song> result = songController.getFavoriteSongs();
         
-        // Doğrulama
-        assertTrue("Kullanıcı oturumu yokken favori şarkı listesi boş olmalı", result.isEmpty());
-        verifyNoInteractions(mockUserSongStatisticsDAO);
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(userSongStatisticsDAO, never()).getFavoriteSongs(anyInt());
     }
     
-    /**
-     * Test amaçlı basit UserController uygulaması
-     */
-    private static class TestUserController extends UserController {
-        private User currentUser;
+    @Test
+    public void testAddSong_Success() {
+        // Arrange
+        String title = "Test Song";
+        String artist = "Test Artist";
+        String album = "Test Album";
+        String genre = "Rock";
+        int year = 2023;
+        int duration = 180;
+        String filePath = "path/to/audio.mp3";
         
-        public TestUserController() {
-            super();
-        }
+        // Create a spy of the controller to mock the isValidFile method
+        SongController spyController = spy(songController);
+        doReturn(true).when(spyController).isValidFile(anyString());
         
-        @Override
-        public User getCurrentUser() {
-            return currentUser;
-        }
+        // Mock the song creation
+        Song expectedSong = new Song(title, artist, album, genre, year, duration, filePath, testUser.getId());
+        expectedSong.setId(1);
+        when(songDAO.create(any(Song.class))).thenReturn(expectedSong);
         
-        public void setCurrentUser(User user) {
-            this.currentUser = user;
-        }
+        // Act
+        Song result = spyController.addSong(title, artist, album, genre, year, duration, filePath);
         
-        @Override
-        public boolean isLoggedIn() {
-            return currentUser != null;
-        }
+        // Assert
+        assertNotNull("Should return a Song object", result);
+        assertEquals("Should return song with correct ID", 1, result.getId());
+        assertEquals("Should return song with correct title", title, result.getTitle());
+        verify(songDAO).create(any(Song.class));
     }
     
-    /**
-     * Test amaçlı basit SongDAO uygulaması
-     */
-    private static class TestSongDAO extends SongDAO {
-        private List<Song> testSongs = new ArrayList<>();
-        private List<Song> searchResults = new ArrayList<>();
-        private Song testSongToReturn = null;
+    @Test
+    public void testAddSong_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
         
-        public TestSongDAO() {
-            super();
-        }
+        // Act
+        Song result = songController.addSong("Title", "Artist", "Album", "Genre", 2023, 180, "path.mp3");
         
-        public void addTestSong(Song song) {
-            testSongs.add(song);
-        }
+        // Assert
+        assertNull("Should return null when no user is logged in", result);
+        verify(songDAO, never()).create(any(Song.class));
+    }
+    
+    @Test
+    public void testAddSong_InvalidFile() {
+        // Arrange
+        SongController spyController = spy(songController);
+        doReturn(false).when(spyController).isValidFile(anyString());
         
-        public void setSearchResults(List<Song> results) {
-            this.searchResults = results;
-        }
+        // Act
+        Song result = spyController.addSong("Title", "Artist", "Album", "Genre", 2023, 180, "invalid_path.mp3");
         
-        public void setTestSongToReturn(Song song) {
-            this.testSongToReturn = song;
-        }
+        // Assert
+        assertNull("Should return null when file path is invalid", result);
+        verify(songDAO, never()).create(any(Song.class));
+    }
+    
+    @Test
+    public void testUpdateSong_Success() {
+        // Arrange
+        int songId = 1;
+        String newTitle = "Updated Title";
+        String newArtist = "Updated Artist";
+        String newAlbum = "Updated Album";
+        String newGenre = "Updated Genre";
+        int newYear = 2024;
         
-        @Override
-        public Song create(Song song) {
-            // SongController'da dosya kontrolü yapılıyor, kullanıcıya özel şarkı döndürme
-            if (testSongToReturn != null) {
-                return testSongToReturn;
-            }
-            
-            song.setId(testSongs.size() + 1);
-            testSongs.add(song);
-            return song;
-        }
+        Song existingSong = new Song("Original Title", "Original Artist", "Original Album", 
+                "Original Genre", 2023, 180, "path.mp3", testUser.getId());
+        existingSong.setId(songId);
         
-        @Override
-        public Optional<Song> findById(int id) {
-            return testSongs.stream()
-                    .filter(s -> s.getId() == id)
-                    .findFirst();
-        }
+        when(songDAO.findById(songId)).thenReturn(Optional.of(existingSong));
+        when(songDAO.update(any(Song.class))).thenReturn(true);
         
-        @Override
-        public List<Song> findByUserId(int userId) {
-            return testSongs.stream()
-                    .filter(s -> s.getUserId() == userId)
-                    .collect(Collectors.toList());
-        }
+        // Act
+        boolean result = songController.updateSong(songId, newTitle, newArtist, newAlbum, newGenre, newYear);
         
-        @Override
-        public List<Song> findAll() {
-            return new ArrayList<>(testSongs);
-        }
+        // Assert
+        assertTrue("Should return true on successful update", result);
+        verify(songDAO).update(argThat(song -> 
+            song.getId() == songId &&
+            song.getTitle().equals(newTitle) &&
+            song.getArtist().equals(newArtist) &&
+            song.getAlbum().equals(newAlbum) &&
+            song.getGenre().equals(newGenre) &&
+            song.getYear() == newYear
+        ));
+    }
+    
+    @Test
+    public void testUpdateSong_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
         
-        @Override
-        public boolean update(Song song) {
-            for (int i = 0; i < testSongs.size(); i++) {
-                if (testSongs.get(i).getId() == song.getId()) {
-                    testSongs.set(i, song);
-                    return true;
-                }
-            }
-            return false;
-        }
+        // Act
+        boolean result = songController.updateSong(1, "Title", "Artist", "Album", "Genre", 2023);
         
-        @Override
-        public boolean delete(int id) {
-            return testSongs.removeIf(s -> s.getId() == id);
-        }
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+        verify(songDAO, never()).update(any(Song.class));
+    }
+    
+    @Test
+    public void testUpdateSong_SongNotFound() {
+        // Arrange
+        when(songDAO.findById(anyInt())).thenReturn(Optional.empty());
         
-        @Override
-        public List<Song> search(String title, String artist, String album, String genre) {
-            return searchResults;
-        }
+        // Act
+        boolean result = songController.updateSong(999, "Title", "Artist", "Album", "Genre", 2023);
+        
+        // Assert
+        assertFalse("Should return false when song is not found", result);
+        verify(songDAO, never()).update(any(Song.class));
+    }
+    
+    @Test
+    public void testUpdateSong_UserDoesNotOwnSong() {
+        // Arrange
+        int songId = 1;
+        int differentUserId = 999;
+        
+        Song existingSong = new Song("Title", "Artist", "Album", "Genre", 2023, 180, "path.mp3", differentUserId);
+        existingSong.setId(songId);
+        
+        when(songDAO.findById(songId)).thenReturn(Optional.of(existingSong));
+        
+        // Act
+        boolean result = songController.updateSong(songId, "New Title", "New Artist", "New Album", "New Genre", 2024);
+        
+        // Assert
+        assertFalse("Should return false when user doesn't own the song", result);
+        verify(songDAO, never()).update(any(Song.class));
+    }
+    
+    @Test
+    public void testDeleteSong_Success() {
+        // Arrange
+        int songId = 1;
+        
+        Song existingSong = new Song("Title", "Artist", "Album", "Genre", 2023, 180, "path.mp3", testUser.getId());
+        existingSong.setId(songId);
+        
+        when(songDAO.findById(songId)).thenReturn(Optional.of(existingSong));
+        when(songDAO.delete(songId)).thenReturn(true);
+        
+        // Act
+        boolean result = songController.deleteSong(songId);
+        
+        // Assert
+        assertTrue("Should return true on successful deletion", result);
+        verify(songDAO).delete(songId);
+    }
+    
+    @Test
+    public void testDeleteSong_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        boolean result = songController.deleteSong(1);
+        
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+        verify(songDAO, never()).delete(anyInt());
+    }
+    
+    @Test
+    public void testDeleteSong_SongNotFound() {
+        // Arrange
+        when(songDAO.findById(anyInt())).thenReturn(Optional.empty());
+        
+        // Act
+        boolean result = songController.deleteSong(999);
+        
+        // Assert
+        assertFalse("Should return false when song is not found", result);
+        verify(songDAO, never()).delete(anyInt());
+    }
+    
+    @Test
+    public void testDeleteSong_UserDoesNotOwnSong() {
+        // Arrange
+        int songId = 1;
+        int differentUserId = 999;
+        
+        Song existingSong = new Song("Title", "Artist", "Album", "Genre", 2023, 180, "path.mp3", differentUserId);
+        existingSong.setId(songId);
+        
+        when(songDAO.findById(songId)).thenReturn(Optional.of(existingSong));
+        
+        // Act
+        boolean result = songController.deleteSong(songId);
+        
+        // Assert
+        assertFalse("Should return false when user doesn't own the song", result);
+        verify(songDAO, never()).delete(anyInt());
+    }
+    
+    @Test
+    public void testGetUserSongs_Success() {
+        // Arrange
+        List<Song> expectedSongs = new ArrayList<>();
+        expectedSongs.add(new Song("Song 1", "Artist 1", "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId()));
+        expectedSongs.add(new Song("Song 2", "Artist 2", "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId()));
+        
+        when(songDAO.findByUserId(testUser.getId())).thenReturn(expectedSongs);
+        
+        // Act
+        List<Song> result = songController.getUserSongs();
+        
+        // Assert
+        assertEquals("Should return the correct number of songs", 2, result.size());
+        assertEquals("Should return the correct songs", expectedSongs, result);
+        verify(songDAO).findByUserId(testUser.getId());
+    }
+    
+    @Test
+    public void testGetUserSongs_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Song> result = songController.getUserSongs();
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(songDAO, never()).findByUserId(anyInt());
+    }
+    
+    @Test
+    public void testSearchSongs_Success() {
+        // Arrange
+        String query = "rock";
+        
+        List<Song> allFoundSongs = new ArrayList<>();
+        Song userSong = new Song("Rock Song", "Rock Artist", "Rock Album", "Rock", 2023, 180, "path1.mp3", testUser.getId());
+        Song otherUserSong = new Song("Pop Song", "Pop Artist", "Pop Album", "Pop", 2023, 180, "path2.mp3", 999); // different user
+        
+        allFoundSongs.add(userSong);
+        allFoundSongs.add(otherUserSong);
+        
+        when(songDAO.search(query, query, query, query)).thenReturn(allFoundSongs);
+        
+        // Act
+        List<Song> result = songController.searchSongs(query);
+        
+        // Assert
+        assertEquals("Should return only songs owned by the current user", 1, result.size());
+        assertEquals("Should return songs with matching query", "Rock Song", result.get(0).getTitle());
+        verify(songDAO).search(query, query, query, query);
+    }
+    
+    @Test
+    public void testSearchSongs_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Song> result = songController.searchSongs("query");
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(songDAO, never()).search(anyString(), anyString(), anyString(), anyString());
+    }
+    
+    @Test
+    public void testGetRecommendations_Success() {
+        // Arrange
+        List<Song> expectedRecommendations = new ArrayList<>();
+        expectedRecommendations.add(new Song("Recommended Song", "Artist", "Album", "Genre", 2023, 180, "path.mp3", 1));
+        
+        when(recommendationService.getSongRecommendations(eq(testUser), eq(10))).thenReturn(expectedRecommendations);
+        
+        // Act
+        List<Song> result = songController.getRecommendations();
+        
+        // Assert
+        assertEquals("Should return recommendations from recommendation service", expectedRecommendations, result);
+        verify(recommendationService).getSongRecommendations(testUser, 10);
+    }
+    
+    @Test
+    public void testGetRecommendations_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Song> result = songController.getRecommendations();
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(recommendationService, never()).getSongRecommendations(any(), anyInt());
+    }
+    
+    @Test
+    public void testGetRecommendations_ExceptionHandling() {
+        // Arrange
+        when(recommendationService.getSongRecommendations(any(), anyInt())).thenThrow(new RuntimeException("Test exception"));
+        
+        // Act
+        List<Song> result = songController.getRecommendations();
+        
+        // Assert
+        assertTrue("Should return empty list when exception occurs", result.isEmpty());
+        verify(recommendationService).getSongRecommendations(testUser, 10);
+    }
+    
+    @Test
+    public void testGetEnhancedRecommendations_Success() {
+        // Arrange
+        Map<Song, String> expectedRecommendations = new HashMap<>();
+        Song recommendedSong = new Song("Recommended Song", "Artist", "Album", "Genre", 2023, 180, "path.mp3", 1);
+        expectedRecommendations.put(recommendedSong, "Because you like this genre");
+        
+        when(recommendationService.getEnhancedSongRecommendations(eq(testUser), eq(10))).thenReturn(expectedRecommendations);
+        
+        // Act
+        Map<Song, String> result = songController.getEnhancedRecommendations();
+        
+        // Assert
+        assertEquals("Should return enhanced recommendations from recommendation service", expectedRecommendations, result);
+        verify(recommendationService).getEnhancedSongRecommendations(testUser, 10);
+    }
+    
+    @Test
+    public void testGetEnhancedRecommendations_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        Map<Song, String> result = songController.getEnhancedRecommendations();
+        
+        // Assert
+        assertTrue("Should return empty map when no user is logged in", result.isEmpty());
+        verify(recommendationService, never()).getEnhancedSongRecommendations(any(), anyInt());
+    }
+    
+    @Test
+    public void testGetEnhancedRecommendations_ExceptionHandling() {
+        // Arrange
+        when(recommendationService.getEnhancedSongRecommendations(any(), anyInt())).thenThrow(new RuntimeException("Test exception"));
+        
+        // Act
+        Map<Song, String> result = songController.getEnhancedRecommendations();
+        
+        // Assert
+        assertTrue("Should return empty map when exception occurs", result.isEmpty());
+        verify(recommendationService).getEnhancedSongRecommendations(testUser, 10);
+    }
+    
+    @Test
+    public void testGetMostPlayedSongs_Success() {
+        // Arrange
+        int limit = 2;
+        List<Integer> mostPlayedIds = new ArrayList<>();
+        mostPlayedIds.add(1);
+        mostPlayedIds.add(2);
+        
+        Song song1 = new Song("Most Played 1", "Artist 1", "Album 1", "Genre 1", 2023, 180, "path1.mp3", testUser.getId());
+        song1.setId(1);
+        
+        Song song2 = new Song("Most Played 2", "Artist 2", "Album 2", "Genre 2", 2023, 180, "path2.mp3", testUser.getId());
+        song2.setId(2);
+        
+        when(userSongStatisticsDAO.getMostPlayedSongs(testUser.getId(), limit)).thenReturn(mostPlayedIds);
+        when(songDAO.findById(1)).thenReturn(Optional.of(song1));
+        when(songDAO.findById(2)).thenReturn(Optional.of(song2));
+        
+        // Act
+        List<Song> result = songController.getMostPlayedSongs(limit);
+        
+        // Assert
+        assertEquals("Should return correct number of most played songs", 2, result.size());
+        assertEquals("Should return correct most played songs", "Most Played 1", result.get(0).getTitle());
+        assertEquals("Should return correct most played songs", "Most Played 2", result.get(1).getTitle());
+        verify(userSongStatisticsDAO).getMostPlayedSongs(testUser.getId(), limit);
+    }
+    
+    @Test
+    public void testGetMostPlayedSongs_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Song> result = songController.getMostPlayedSongs(5);
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+        verify(userSongStatisticsDAO, never()).getMostPlayedSongs(anyInt(), anyInt());
+    }
+    
+    @Test
+    public void testGetMostPlayedSongs_SongNotFound() {
+        // Arrange
+        int limit = 1;
+        List<Integer> mostPlayedIds = new ArrayList<>();
+        mostPlayedIds.add(999); // ID that won't be found
+        
+        when(userSongStatisticsDAO.getMostPlayedSongs(testUser.getId(), limit)).thenReturn(mostPlayedIds);
+        when(songDAO.findById(999)).thenReturn(Optional.empty());
+        
+        // Act
+        List<Song> result = songController.getMostPlayedSongs(limit);
+        
+        // Assert
+        assertTrue("Should return empty list when no songs are found", result.isEmpty());
+        verify(userSongStatisticsDAO).getMostPlayedSongs(testUser.getId(), limit);
+        verify(songDAO).findById(999);
+    }
+    
+    @Test
+    public void testAddArtist_Success() {
+        // Arrange
+        String artistName = "New Artist";
+        List<String> existingArtists = new ArrayList<>();
+        existingArtists.add("Existing Artist");
+        
+        // Mock behavior
+        SongController spyController = spy(songController);
+        doReturn(existingArtists).when(spyController).getArtists();
+        
+        // Act
+        boolean result = spyController.addArtist(artistName);
+        
+        // Assert
+        assertTrue("Should return true on successful artist addition", result);
+    }
+    
+    @Test
+    public void testAddArtist_AlreadyExists() {
+        // Arrange
+        String artistName = "Existing Artist";
+        List<String> existingArtists = new ArrayList<>();
+        existingArtists.add(artistName);
+        
+        // Mock behavior
+        SongController spyController = spy(songController);
+        doReturn(existingArtists).when(spyController).getArtists();
+        
+        // Act
+        boolean result = spyController.addArtist(artistName);
+        
+        // Assert
+        assertTrue("Should return true when artist already exists", result);
+    }
+    
+    @Test
+    public void testAddArtist_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        boolean result = songController.addArtist("Artist Name");
+        
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+    }
+    
+    @Test
+    public void testAddArtist_NullOrEmptyName() {
+        // Test with null
+        assertFalse("Should return false when artist name is null", songController.addArtist(null));
+        
+        // Test with empty string
+        assertFalse("Should return false when artist name is empty", songController.addArtist(""));
+        
+        // Test with whitespace only
+        assertFalse("Should return false when artist name contains only whitespace", songController.addArtist("   "));
+    }
+    
+    @Test
+    public void testDeleteArtist_Success() {
+        // Arrange
+        String artistName = "Artist to Delete";
+        List<String> existingArtists = new ArrayList<>();
+        existingArtists.add(artistName);
+        
+        // Mock behavior
+        SongController spyController = spy(songController);
+        doReturn(existingArtists).when(spyController).getArtists();
+        
+        // Act
+        boolean result = spyController.deleteArtist(artistName);
+        
+        // Assert
+        assertTrue("Should return true on successful artist deletion", result);
+    }
+    
+    @Test
+    public void testDeleteArtist_NotFound() {
+        // Arrange
+        String artistName = "Non-existent Artist";
+        List<String> existingArtists = new ArrayList<>();
+        existingArtists.add("Different Artist");
+        
+        // Mock behavior
+        SongController spyController = spy(songController);
+        doReturn(existingArtists).when(spyController).getArtists();
+        
+        // Act
+        boolean result = spyController.deleteArtist(artistName);
+        
+        // Assert
+        assertFalse("Should return false when artist is not found", result);
+    }
+    
+    @Test
+    public void testDeleteArtist_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        boolean result = songController.deleteArtist("Artist Name");
+        
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+    }
+    
+    @Test
+    public void testDeleteArtist_NullOrEmptyName() {
+        // Test with null
+        assertFalse("Should return false when artist name is null", songController.deleteArtist(null));
+        
+        // Test with empty string
+        assertFalse("Should return false when artist name is empty", songController.deleteArtist(""));
+        
+        // Test with whitespace only
+        assertFalse("Should return false when artist name contains only whitespace", songController.deleteArtist("   "));
+    }
+    
+    @Test
+    public void testAddAlbum_Success() {
+        // Arrange
+        String title = "New Album";
+        String artist = "Test Artist";
+        int year = 2023;
+        String genre = "Rock";
+        
+        // Create expected album
+        Album expectedAlbum = new Album(title, artist, year, genre, testUser.getId());
+        expectedAlbum.setId(1);
+        
+        // Act
+        Album result = songController.addAlbum(title, artist, year, genre);
+        
+        // Assert
+        assertNotNull("Should return an Album object", result);
+        assertEquals("Should set correct ID", 1, result.getId());
+        assertEquals("Should set correct title", title, result.getTitle());
+        assertEquals("Should set correct artist", artist, result.getArtist());
+        assertEquals("Should set correct year", year, result.getYear());
+        assertEquals("Should set correct genre", genre, result.getGenre());
+    }
+    
+    @Test
+    public void testAddAlbum_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        Album result = songController.addAlbum("Title", "Artist", 2023, "Genre");
+        
+        // Assert
+        assertNull("Should return null when no user is logged in", result);
+    }
+    
+    @Test
+    public void testGetUserAlbums_Success() {
+        // Note: This test is simplified since the actual implementation returns an empty list
+        // Act
+        List<Album> result = songController.getUserAlbums();
+        
+        // Assert
+        assertNotNull("Should return a list", result);
+        assertTrue("Should return an empty list per the implementation", result.isEmpty());
+    }
+    
+    @Test
+    public void testGetUserAlbums_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        List<Album> result = songController.getUserAlbums();
+        
+        // Assert
+        assertTrue("Should return empty list when no user is logged in", result.isEmpty());
+    }
+    
+    @Test
+    public void testDeleteAlbum_Success() {
+        // Note: This test is simplified since the actual implementation always returns true
+        // Act
+        boolean result = songController.deleteAlbum(1);
+        
+        // Assert
+        assertTrue("Should return true according to the implementation", result);
+    }
+    
+    @Test
+    public void testDeleteAlbum_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        boolean result = songController.deleteAlbum(1);
+        
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+    }
+    
+    @Test
+    public void testAddSongToAlbum_Success() {
+        // Note: This test is simplified since the actual implementation always returns true
+        // Act
+        boolean result = songController.addSongToAlbum(1, 1);
+        
+        // Assert
+        assertTrue("Should return true according to the implementation", result);
+    }
+    
+    @Test
+    public void testAddSongToAlbum_NoUserLoggedIn() {
+        // Arrange
+        when(userController.getCurrentUser()).thenReturn(null);
+        
+        // Act
+        boolean result = songController.addSongToAlbum(1, 1);
+        
+        // Assert
+        assertFalse("Should return false when no user is logged in", result);
+    }
+    
+    @Test
+    public void testAddSong_FourParameters() {
+        // Arrange
+        String title = "Test Song";
+        String artist = "Test Artist";
+        String album = "Test Album";
+        String genre = "Rock";
+        
+        // Act
+        songController.addSong(title, artist, album, genre);
+        
+        // Assert
+        verify(songDAO).addSong(title, artist, album, genre);
+    }
+    
+    @Test
+    public void testGetAllSongs() {
+        // Arrange
+        List<String[]> expectedSongs = new ArrayList<>();
+        expectedSongs.add(new String[]{"Song 1", "Artist 1", "Album 1"});
+        expectedSongs.add(new String[]{"Song 2", "Artist 2", "Album 2"});
+        
+        when(songDAO.getAllSongs()).thenReturn(expectedSongs);
+        
+        // Act
+        List<String[]> result = songController.getAllSongs();
+        
+        // Assert
+        assertEquals("Should return songs from DAO", expectedSongs, result);
+        verify(songDAO).getAllSongs();
+    }
+    
+    @Test
+    public void testDeleteSong_WithTitleArtistAlbum() {
+        // Arrange
+        String title = "Song to Delete";
+        String artist = "Delete Artist";
+        String album = "Delete Album";
+        
+        // Act
+        songController.deleteSong(title, artist, album);
+        
+        // Assert
+        verify(songDAO).deleteSong(title, artist, album);
     }
 } 
