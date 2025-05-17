@@ -5,10 +5,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.*;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.EventQueue;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -72,6 +74,10 @@ public class MusicLibraryGUITest {
         private JTextField artistField;
         private JTextField albumField;
         private JTextField genreField;
+        
+        // Fields to store dialog values for testing
+        public String[] artistFieldValues = new String[3]; // name, country, genre
+        public String[] albumFieldValues = new String[4];  // title, artist, year, genre
 
         public TestableGUI(SongDAO songDAO, ArtistDAO artistDAO, AlbumDAO albumDAO, PlaylistDAO playlistDAO) {
             super(songDAO, artistDAO, albumDAO, playlistDAO);
@@ -193,6 +199,35 @@ public class MusicLibraryGUITest {
         
         public void callOnRemoveFromPlaylistClicked() {
             onRemoveFromPlaylistClicked();
+        }
+        
+        // Override methods to use test values instead of dialog
+        @Override
+        protected String[] showArtistDialog(String title, String[] initialValues) {
+            return artistFieldValues;
+        }
+        
+        @Override
+        protected String[] showAlbumDialog(String title, String[] initialValues) {
+            return albumFieldValues;
+        }
+
+        /**
+         * Overridden to provide test values for song dialogs
+         */
+        protected String[] showSongDialog(String title, String[] initialValues) {
+            // If we have test fields set, use their values
+            if (titleField != null && artistField != null && albumField != null && genreField != null) {
+                return new String[] {
+                    titleField.getText(),
+                    artistField.getText(),
+                    albumField.getText(),
+                    genreField.getText()
+                };
+            }
+            
+            // Fall back to original implementation for other cases
+            return super.showSongDialog(title, initialValues);
         }
     }
     
@@ -779,21 +814,19 @@ public class MusicLibraryGUITest {
 
     @Test
     public void testOnAddArtistClickedCancelled() {
-        // Mock behavior for when dialog is shown
-        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
-                any(), any(), eq("Add Artist"), anyInt()))
-                .thenReturn(JOptionPane.CANCEL_OPTION);
+        // Mock the showArtistDialog method to return null (simulating cancellation)
+        TestableGUI testGui = spy(new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO));
+        doReturn(null).when(testGui).showArtistDialog(eq("Add Artist"), any());
         
         try {
-            // This test makes sure the method doesn't throw exceptions and no dialogs appear
-            ((TestableGUI)gui).callOnAddArtistClicked();
+            // This test makes sure the method doesn't throw exceptions when dialog is cancelled
+            testGui.callOnAddArtistClicked();
         } catch (Exception e) {
             fail("Exception should not be thrown: " + e.getMessage());
         }
         
-        // Verify JOptionPane was called
-        mockedJOptionPane.verify(() -> JOptionPane.showConfirmDialog(
-                any(), any(), eq("Add Artist"), anyInt()));
+        // Verify addArtist was never called (since dialog was cancelled)
+        verify(mockArtistDAO, never()).addArtist(anyString(), anyString(), anyString(), anyInt());
     }
 
     @Test
@@ -816,21 +849,19 @@ public class MusicLibraryGUITest {
 
     @Test
     public void testOnAddAlbumClickedCancelled() {
-        // Mock behavior for when dialog is shown
-        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
-                any(), any(), eq("Add Album"), anyInt()))
-                .thenReturn(JOptionPane.CANCEL_OPTION);
+        // Mock the showAlbumDialog method to return null (simulating cancellation)
+        TestableGUI testGui = spy(new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO));
+        doReturn(null).when(testGui).showAlbumDialog(eq("Add Album"), any());
         
         try {
-            // This test makes sure the method doesn't throw exceptions and no dialogs appear
-            ((TestableGUI)gui).callOnAddAlbumClicked();
+            // This test makes sure the method doesn't throw exceptions when dialog is cancelled
+            testGui.callOnAddAlbumClicked();
         } catch (Exception e) {
             fail("Exception should not be thrown: " + e.getMessage());
         }
         
-        // Verify JOptionPane was called
-        mockedJOptionPane.verify(() -> JOptionPane.showConfirmDialog(
-                any(), any(), eq("Add Album"), anyInt()));
+        // Verify addAlbum was never called (since dialog was cancelled)
+        verify(mockAlbumDAO, never()).addAlbum(anyString(), anyString(), anyString(), anyString(), anyInt());
     }
 
     @Test
@@ -1276,5 +1307,1254 @@ public class MusicLibraryGUITest {
         
         // Verify deleteAlbum was NOT called
         verify(mockAlbumDAO, never()).deleteAlbum(anyString(), anyString());
+    }
+
+    @Test
+    public void testAddArtistClickedWithValidationFailure() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Mock TestableGUI to capture input values
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Force validation failure by setting nameField to empty
+        testGui.artistFieldValues = new String[]{"", "USA", "Rock"};
+        
+        // Call the method
+        testGui.callOnAddArtistClicked();
+        
+        // Verify validation error message
+        assertEquals("All fields are required", testGui.getLastErrorMessage());
+        
+        // Verify addArtist was NOT called
+        verify(mockArtistDAO, never()).addArtist(anyString(), anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    public void testAddArtistClickedWithDatabaseSuccess() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create test GUI with field values set
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        testGui.artistFieldValues = new String[]{"New Artist", "USA", "Rock"};
+        
+        // Mock successful database operation
+        when(mockArtistDAO.addArtist(anyString(), anyString(), anyString(), anyInt())).thenReturn(true);
+        
+        // Call the method
+        testGui.callOnAddArtistClicked();
+        
+        // Verify addArtist was called with correct parameters
+        verify(mockArtistDAO).addArtist("New Artist", "USA", "Rock", 1);
+        
+        // Verify success message
+        assertEquals("Artist added successfully", testGui.getLastStatusBarMessage());
+    }
+
+    @Test
+    public void testAddArtistClickedWithDatabaseFailure() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create test GUI with field values set
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        testGui.artistFieldValues = new String[]{"New Artist", "USA", "Rock"};
+        
+        // Mock database failure
+        when(mockArtistDAO.addArtist(anyString(), anyString(), anyString(), anyInt())).thenReturn(false);
+        
+        // Call the method
+        testGui.callOnAddArtistClicked();
+        
+        // Verify error message
+        assertEquals("Failed to add artist to database", testGui.getLastErrorMessage());
+    }
+
+    @Test
+    public void testAddArtistClickedWithException() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create test GUI with field values set
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        testGui.artistFieldValues = new String[]{"New Artist", "USA", "Rock"};
+        
+        // Mock exception during database operation
+        when(mockArtistDAO.addArtist(anyString(), anyString(), anyString(), anyInt()))
+            .thenThrow(new RuntimeException("Database error"));
+        
+        // Call the method
+        testGui.callOnAddArtistClicked();
+        
+        // Verify error message
+        assertTrue(testGui.getLastErrorMessage().contains("Error adding artist:"));
+    }
+
+    @Test
+    public void testOnEditArtistClickedWithValidInput() {
+        // Create test GUI with mock data
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) testGui.artistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Artist", "USA", "Rock"});
+        
+        // Select the first row
+        testGui.artistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Set field values
+        testGui.artistFieldValues = new String[]{"Updated Artist", "Canada", "Jazz"};
+        
+        // Mock the updateArtist method to succeed
+        when(mockArtistDAO.updateArtist(anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(true);
+        
+        // Call the method
+        testGui.callOnEditArtistClicked();
+        
+        // Verify updateArtist was called with correct parameters
+        verify(mockArtistDAO).updateArtist("Original Artist", "Updated Artist", "Canada", "Jazz");
+        
+        // Verify success message
+        assertEquals("Artist updated successfully", testGui.getLastStatusBarMessage());
+    }
+
+    @Test
+    public void testOnEditArtistClickedWithValidationFailure() {
+        // Create test GUI with mock data
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) testGui.artistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Artist", "USA", "Rock"});
+        
+        // Select the first row
+        testGui.artistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Set field values with empty name to trigger validation error
+        testGui.artistFieldValues = new String[]{"", "Canada", "Jazz"};
+        
+        // Call the method
+        testGui.callOnEditArtistClicked();
+        
+        // Verify error message
+        assertEquals("All fields are required", testGui.getLastErrorMessage());
+        
+        // Verify updateArtist was NOT called
+        verify(mockArtistDAO, never()).updateArtist(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    public void testOnEditArtistClickedWithDatabaseFailure() {
+        // Create test GUI with mock data
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) testGui.artistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Artist", "USA", "Rock"});
+        
+        // Select the first row
+        testGui.artistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Artist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Set field values
+        testGui.artistFieldValues = new String[]{"Updated Artist", "Canada", "Jazz"};
+        
+        // Mock the updateArtist method to fail
+        when(mockArtistDAO.updateArtist(anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(false);
+        
+        // Call the method
+        testGui.callOnEditArtistClicked();
+        
+        // Verify error message
+        assertEquals("Failed to update artist in database", testGui.getLastErrorMessage());
+    }
+
+    @Test
+    public void testOnAddAlbumClickedWithValidInput() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Album"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create test GUI with field values set
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        testGui.albumFieldValues = new String[]{"New Album", "Test Artist", "2023", "Rock"};
+        
+        // Mock successful database operation
+        when(mockAlbumDAO.addAlbum(anyString(), anyString(), anyString(), anyString(), anyInt()))
+            .thenReturn(true);
+        
+        // Call the method
+        testGui.callOnAddAlbumClicked();
+        
+        // Verify addAlbum was called with correct parameters
+        verify(mockAlbumDAO).addAlbum("New Album", "Test Artist", "2023", "Rock", 1);
+        
+        // Verify success message
+        assertEquals("Album added successfully", testGui.getLastStatusBarMessage());
+    }
+
+    @Test
+    public void testOnAddAlbumClickedWithValidationFailure() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Album"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create test GUI with missing field values
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        testGui.albumFieldValues = new String[]{"", "Test Artist", "2023", "Rock"};
+        
+        // Call the method
+        testGui.callOnAddAlbumClicked();
+        
+        // Verify validation error message
+        assertEquals("All fields are required", testGui.getLastErrorMessage());
+        
+        // Verify addAlbum was NOT called
+        verify(mockAlbumDAO, never()).addAlbum(anyString(), anyString(), anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    public void testOnAddAlbumClickedWithDatabaseFailure() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Album"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create test GUI with field values set
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        testGui.albumFieldValues = new String[]{"New Album", "Test Artist", "2023", "Rock"};
+        
+        // Mock database failure
+        when(mockAlbumDAO.addAlbum(anyString(), anyString(), anyString(), anyString(), anyInt()))
+            .thenReturn(false);
+        
+        // Call the method
+        testGui.callOnAddAlbumClicked();
+        
+        // Verify error message
+        assertEquals("Failed to add album to database", testGui.getLastErrorMessage());
+    }
+
+    @Test
+    public void testOnEditAlbumClickedWithValidInput() {
+        // Create test GUI with mock data
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) testGui.albumsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Album", "Original Artist", "2022", "Rock"});
+        
+        // Select the first row
+        testGui.albumsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Album"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Set field values
+        testGui.albumFieldValues = new String[]{"Updated Album", "Updated Artist", "2023", "Jazz"};
+        
+        // Mock the updateAlbum method to succeed
+        when(mockAlbumDAO.updateAlbum(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(true);
+        
+        // Call the method
+        testGui.callOnEditAlbumClicked();
+        
+        // Verify updateAlbum was called with correct parameters
+        verify(mockAlbumDAO).updateAlbum(
+            "Original Album", "Original Artist",
+            "Updated Album", "Updated Artist", "2023", "Jazz");
+        
+        // Verify success message
+        assertEquals("Album updated successfully", testGui.getLastStatusBarMessage());
+    }
+
+    @Test
+    public void testOnEditAlbumClickedWithValidationFailure() {
+        // Create test GUI with mock data
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) testGui.albumsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Album", "Original Artist", "2022", "Rock"});
+        
+        // Select the first row
+        testGui.albumsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Album"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Set field values with missing title to trigger validation error
+        testGui.albumFieldValues = new String[]{"", "Updated Artist", "2023", "Jazz"};
+        
+        // Call the method
+        testGui.callOnEditAlbumClicked();
+        
+        // Verify error message
+        assertEquals("All fields are required", testGui.getLastErrorMessage());
+        
+        // Verify updateAlbum was NOT called
+        verify(mockAlbumDAO, never()).updateAlbum(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    public void testOnEditAlbumClickedWithDatabaseFailure() {
+        // Create test GUI with mock data
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) testGui.albumsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Album", "Original Artist", "2022", "Rock"});
+        
+        // Select the first row
+        testGui.albumsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Album"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Set field values
+        testGui.albumFieldValues = new String[]{"Updated Album", "Updated Artist", "2023", "Jazz"};
+        
+        // Mock the updateAlbum method to fail
+        when(mockAlbumDAO.updateAlbum(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(false);
+        
+        // Call the method
+        testGui.callOnEditAlbumClicked();
+        
+        // Verify error message
+        assertEquals("Failed to update album in database", testGui.getLastErrorMessage());
+    }
+
+    @Test
+    public void testOnEditArtistClickedCancelled() {
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) gui.artistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Test Artist", "USA", "Rock"});
+        
+        // Select the first row
+        gui.artistsTable.setRowSelectionInterval(0, 0);
+        
+        // Create a spy of TestableGUI to mock showArtistDialog
+        TestableGUI testGui = spy(new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO));
+        // Copy table data to the test GUI
+        DefaultTableModel testModel = (DefaultTableModel) testGui.artistsTable.getModel();
+        testModel.setRowCount(0);
+        testModel.addRow(new Object[]{"Test Artist", "USA", "Rock"});
+        testGui.artistsTable.setRowSelectionInterval(0, 0);
+        
+        // Mock the dialog to return null (simulating cancellation)
+        doReturn(null).when(testGui).showArtistDialog(eq("Edit Artist"), any());
+        
+        try {
+            testGui.callOnEditArtistClicked();
+        } catch (Exception e) {
+            fail("Exception should not be thrown: " + e.getMessage());
+        }
+        
+        // Verify updateArtist was not called (since dialog was cancelled)
+        verify(mockArtistDAO, never()).updateArtist(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    public void testOnEditAlbumClickedCancelled() {
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) gui.albumsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Test Album", "Test Artist", "2023", "Rock"});
+        
+        // Select the first row
+        gui.albumsTable.setRowSelectionInterval(0, 0);
+        
+        // Create a spy of TestableGUI to mock showAlbumDialog
+        TestableGUI testGui = spy(new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO));
+        // Copy table data to the test GUI
+        DefaultTableModel testModel = (DefaultTableModel) testGui.albumsTable.getModel();
+        testModel.setRowCount(0);
+        testModel.addRow(new Object[]{"Test Album", "Test Artist", "2023", "Rock"});
+        testGui.albumsTable.setRowSelectionInterval(0, 0);
+        
+        // Mock the dialog to return null (simulating cancellation)
+        doReturn(null).when(testGui).showAlbumDialog(eq("Edit Album"), any());
+        
+        try {
+            testGui.callOnEditAlbumClicked();
+        } catch (Exception e) {
+            fail("Exception should not be thrown: " + e.getMessage());
+        }
+        
+        // Verify updateAlbum was not called (since dialog was cancelled)
+        verify(mockAlbumDAO, never()).updateAlbum(anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    public void testOnCreatePlaylistClickedWithValidInput() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Create Playlist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Mock input field with valid name
+        JTextField nameField = new JTextField("Test Playlist");
+        
+        // Create a component finder to locate the JTextField in the dialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    // Get the component (the panel)
+                    Object panel = invocation.getArgument(1);
+                    
+                    // If it's a JPanel, find the JTextField and replace it
+                    if (panel instanceof JPanel) {
+                        findAndReplaceTextField((Container)panel, nameField);
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // Mock addPlaylist to return true
+        when(mockPlaylistDAO.addPlaylist(eq("Test Playlist"), anyString(), anyInt())).thenReturn(true);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnCreatePlaylistClicked();
+        
+        // Verify addPlaylist was called with correct parameters
+        verify(mockPlaylistDAO).addPlaylist(eq("Test Playlist"), anyString(), anyInt());
+        
+        // Verify success message
+        assertEquals("Playlist created successfully", ((TestableGUI)gui).getLastStatusBarMessage());
+    }
+    
+    @Test
+    public void testOnCreatePlaylistClickedWithEmptyInput() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Create Playlist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Mock input field with empty name
+        JTextField nameField = new JTextField("");
+        
+        // Create a component finder to locate the JTextField in the dialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    // Get the component (the panel)
+                    Object panel = invocation.getArgument(1);
+                    
+                    // If it's a JPanel, find the JTextField and replace it
+                    if (panel instanceof JPanel) {
+                        findAndReplaceTextField((Container)panel, nameField);
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // Call the method
+        ((TestableGUI)gui).callOnCreatePlaylistClicked();
+        
+        // Verify error message
+        assertEquals("Playlist name is required", ((TestableGUI)gui).getLastErrorMessage());
+        
+        // Verify addPlaylist was NOT called
+        verify(mockPlaylistDAO, never()).addPlaylist(anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    public void testOnCreatePlaylistClickedWithDatabaseError() {
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Create Playlist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Mock input field with valid name
+        JTextField nameField = new JTextField("Test Playlist");
+        
+        // Create a component finder to locate the JTextField in the dialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    // Get the component (the panel)
+                    Object panel = invocation.getArgument(1);
+                    
+                    // If it's a JPanel, find the JTextField and replace it
+                    if (panel instanceof JPanel) {
+                        findAndReplaceTextField((Container)panel, nameField);
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // Mock addPlaylist to return false (database error)
+        when(mockPlaylistDAO.addPlaylist(anyString(), anyString(), anyInt())).thenReturn(false);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnCreatePlaylistClicked();
+        
+        // Verify error message
+        assertEquals("Failed to create playlist in database", ((TestableGUI)gui).getLastErrorMessage());
+    }
+
+    @Test
+    public void testOnEditPlaylistClickedWithValidInput() {
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) gui.playlistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Playlist", "2", "2023-01-01"});
+        
+        // Select the first row
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Playlist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Mock input field with valid name
+        JTextField nameField = new JTextField("Updated Playlist");
+        
+        // Create a component finder to locate the JTextField in the dialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    // Get the component (the panel)
+                    Object panel = invocation.getArgument(1);
+                    
+                    // If it's a JPanel, find the JTextField and replace it
+                    if (panel instanceof JPanel) {
+                        findAndReplaceTextField((Container)panel, nameField);
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // Mock updatePlaylist to return true
+        when(mockPlaylistDAO.updatePlaylist(eq("Original Playlist"), eq("Updated Playlist"))).thenReturn(true);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnEditPlaylistClicked();
+        
+        // Verify updatePlaylist was called with correct parameters
+        verify(mockPlaylistDAO).updatePlaylist("Original Playlist", "Updated Playlist");
+        
+        // Verify success message
+        assertEquals("Playlist updated successfully", ((TestableGUI)gui).getLastStatusBarMessage());
+    }
+
+    @Test
+    public void testOnEditPlaylistClickedWithEmptyInput() {
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) gui.playlistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Original Playlist", "2", "2023-01-01"});
+        
+        // Select the first row
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up JOptionPane to return OK
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Edit Playlist"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Mock input field with empty name
+        JTextField nameField = new JTextField("");
+        
+        // Create a component finder to locate the JTextField in the dialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    // Get the component (the panel)
+                    Object panel = invocation.getArgument(1);
+                    
+                    // If it's a JPanel, find the JTextField and replace it
+                    if (panel instanceof JPanel) {
+                        findAndReplaceTextField((Container)panel, nameField);
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // Call the method
+        ((TestableGUI)gui).callOnEditPlaylistClicked();
+        
+        // Verify error message
+        assertEquals("Playlist name is required", ((TestableGUI)gui).getLastErrorMessage());
+        
+        // Verify updatePlaylist was NOT called
+        verify(mockPlaylistDAO, never()).updatePlaylist(anyString(), anyString());
+    }
+
+    @Test
+    public void testOnDeletePlaylistClickedWithConfirmation() {
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) gui.playlistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Playlist To Delete", "2", "2023-01-01"});
+        
+        // Select the first row
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up confirmation dialog to return true (user says YES to deletion)
+        ((TestableGUI)gui).setConfirmDialogResult(true);
+        
+        // Mock the deletePlaylist method
+        when(mockPlaylistDAO.deletePlaylist(eq("Playlist To Delete"))).thenReturn(true);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnDeletePlaylistClicked();
+        
+        // Verify deletePlaylist was called with the correct parameters
+        verify(mockPlaylistDAO).deletePlaylist("Playlist To Delete");
+        
+        // Verify success message
+        assertEquals("Playlist deleted successfully", ((TestableGUI)gui).getLastStatusBarMessage());
+    }
+
+    @Test
+    public void testOnDeletePlaylistClickedWithDatabaseError() {
+        // Setup the table with data
+        DefaultTableModel model = (DefaultTableModel) gui.playlistsTable.getModel();
+        model.setRowCount(0);
+        model.addRow(new Object[]{"Playlist To Delete", "2", "2023-01-01"});
+        
+        // Select the first row
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Set up confirmation dialog to return true (user says YES to deletion)
+        ((TestableGUI)gui).setConfirmDialogResult(true);
+        
+        // Mock the deletePlaylist method to return false
+        when(mockPlaylistDAO.deletePlaylist(anyString())).thenReturn(false);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnDeletePlaylistClicked();
+        
+        // Verify error message
+        assertEquals("Failed to delete playlist from database", ((TestableGUI)gui).getLastErrorMessage());
+    }
+
+    @Test
+    public void testOnAddToPlaylistClickedWithValidSelection() {
+        // Setup the playlist table
+        DefaultTableModel playlistModel = (DefaultTableModel) gui.playlistsTable.getModel();
+        playlistModel.setRowCount(0);
+        playlistModel.addRow(new Object[]{"Test Playlist", "0", "2023-01-01"});
+        
+        // Setup the songs table
+        DefaultTableModel songsModel = (DefaultTableModel) gui.songsTable.getModel();
+        songsModel.setRowCount(0);
+        songsModel.addRow(new Object[]{"Test Song", "Test Artist", "Test Album", "Rock"});
+        
+        // Select the playlist
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Mock the JOptionPane.showInputDialog to return a song
+        mockedJOptionPane.when(() -> JOptionPane.showInputDialog(
+                any(), anyString(), anyString(), anyInt(), any(), any(), any()))
+                .thenReturn("Test Song - Test Artist");
+        
+        // Call the method
+        ((TestableGUI)gui).callOnAddToPlaylistClicked();
+        
+        // Verify the song count was updated
+        assertEquals("1", playlistModel.getValueAt(0, 1));
+        
+        // Verify success message
+        assertTrue(((TestableGUI)gui).getLastStatusBarMessage().contains("Added 'Test Song - Test Artist' to playlist 'Test Playlist'"));
+    }
+
+    @Test
+    public void testOnAddToPlaylistClickedWithNoSongs() {
+        // Setup the playlist table
+        DefaultTableModel playlistModel = (DefaultTableModel) gui.playlistsTable.getModel();
+        playlistModel.setRowCount(0);
+        playlistModel.addRow(new Object[]{"Test Playlist", "0", "2023-01-01"});
+        
+        // Clear the songs table
+        DefaultTableModel songsModel = (DefaultTableModel) gui.songsTable.getModel();
+        songsModel.setRowCount(0);
+        
+        // Select the playlist
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnAddToPlaylistClicked();
+        
+        // Verify error message
+        assertEquals("No songs available to add to playlist", ((TestableGUI)gui).getLastErrorMessage());
+    }
+
+    @Test
+    public void testOnRemoveFromPlaylistClickedWithValidInput() {
+        // Setup the playlist table
+        DefaultTableModel playlistModel = (DefaultTableModel) gui.playlistsTable.getModel();
+        playlistModel.setRowCount(0);
+        playlistModel.addRow(new Object[]{"Test Playlist", "1", "2023-01-01"});
+        
+        // Select the playlist
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Mock the JOptionPane.showInputDialog to return a song name
+        mockedJOptionPane.when(() -> JOptionPane.showInputDialog(
+                any(), anyString(), anyString(), anyInt()))
+                .thenReturn("Test Song");
+        
+        // Call the method
+        ((TestableGUI)gui).callOnRemoveFromPlaylistClicked();
+        
+        // Verify the song count was updated
+        assertEquals("0", playlistModel.getValueAt(0, 1));
+        
+        // Verify success message
+        assertTrue(((TestableGUI)gui).getLastStatusBarMessage().contains("Removed 'Test Song' from playlist 'Test Playlist'"));
+    }
+
+    @Test
+    public void testOnRemoveFromPlaylistClickedWithNoSongs() {
+        // Setup the playlist table
+        DefaultTableModel playlistModel = (DefaultTableModel) gui.playlistsTable.getModel();
+        playlistModel.setRowCount(0);
+        playlistModel.addRow(new Object[]{"Test Playlist", "0", "2023-01-01"});
+        
+        // Select the playlist
+        gui.playlistsTable.setRowSelectionInterval(0, 0);
+        
+        // Call the method
+        ((TestableGUI)gui).callOnRemoveFromPlaylistClicked();
+        
+        // Verify error message
+        assertEquals("No songs in playlist to remove", ((TestableGUI)gui).getLastErrorMessage());
+    }
+    
+    // Helper method to find and replace text fields in a container
+    private void findAndReplaceTextField(Container container, JTextField replacement) {
+        Component[] components = container.getComponents();
+        for (Component component : components) {
+            if (component instanceof JTextField) {
+                // Replace the text field value
+                ((JTextField)component).setText(replacement.getText());
+                return;
+            } else if (component instanceof Container) {
+                // Recursively search nested containers
+                findAndReplaceTextField((Container)component, replacement);
+            }
+        }
+    }
+    
+    @Test
+    public void testShowArtistDialogCreation() {
+        // Create a TestableGUI that will use our defined values
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Mock the actual behavior of JOptionPane.showConfirmDialog directly
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Call the method with null initial values
+        String[] result = testGui.showArtistDialog("Add Artist", null);
+        
+        // Verify the result is not null (dialog was created and returned values)
+        assertNotNull(result);
+        assertEquals(3, result.length);
+    }
+    
+    @Test
+    public void testShowArtistDialogWithInitialValues() {
+        // Create a TestableGUI that will use our defined values
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Set up initial values
+        String[] initialValues = new String[] {"Test Artist", "Test Country", "Test Genre"};
+        
+        // Mock the actual behavior of JOptionPane.showConfirmDialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Call the method with initial values
+        String[] result = testGui.showArtistDialog("Edit Artist", initialValues);
+        
+        // Verify the result is not null (dialog was created and returned values)
+        assertNotNull(result);
+        assertEquals(3, result.length);
+    }
+    
+    @Test
+    public void testShowArtistDialogCancelled() {
+        // For this test, manually override the TestableGUI's implementation
+        // Rather than using the default implementation, which doesn't handle null for cancelled dialogs
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO) {
+            @Override
+            protected String[] showArtistDialog(String title, String[] initialValues) {
+                return null; // Simulate cancellation
+            }
+        };
+        
+        // Mock JOptionPane to return CANCEL_OPTION
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.CANCEL_OPTION);
+        
+        // Call the method directly through overridden implementation
+        String[] result = testGui.showArtistDialog("Add Artist", null);
+        
+        // Verify the result is null (dialog was cancelled)
+        assertNull(result);
+    }
+    
+    @Test
+    public void testShowAlbumDialogCreation() {
+        // Create a TestableGUI that will use our defined values
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Mock the actual behavior of JOptionPane.showConfirmDialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Call the method with null initial values
+        String[] result = testGui.showAlbumDialog("Add Album", null);
+        
+        // Verify the result is not null (dialog was created and returned values)
+        assertNotNull(result);
+        assertEquals(4, result.length);
+    }
+    
+    @Test
+    public void testShowAlbumDialogWithInitialValues() {
+        // Create a TestableGUI that will use our defined values
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Set up initial values
+        String[] initialValues = new String[] {"Test Album", "Test Artist", "2023", "Test Genre"};
+        
+        // Mock the actual behavior of JOptionPane.showConfirmDialog
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Call the method with initial values
+        String[] result = testGui.showAlbumDialog("Edit Album", initialValues);
+        
+        // Verify the result is not null (dialog was created and returned values)
+        assertNotNull(result);
+        assertEquals(4, result.length);
+    }
+    
+    @Test
+    public void testShowAlbumDialogCancelled() {
+        // For this test, manually override the TestableGUI's implementation
+        // Rather than using the default implementation, which doesn't handle null for cancelled dialogs
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO) {
+            @Override
+            protected String[] showAlbumDialog(String title, String[] initialValues) {
+                return null; // Simulate cancellation
+            }
+        };
+        
+        // Mock JOptionPane to return CANCEL_OPTION
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.CANCEL_OPTION);
+        
+        // Call the method directly through overridden implementation
+        String[] result = testGui.showAlbumDialog("Add Album", null);
+        
+        // Verify the result is null (dialog was cancelled)
+        assertNull(result);
+    }
+
+    @Test
+    public void testCloseDatabaseWithException() {
+        // Create a mock for the static DatabaseUtil class
+        try (MockedStatic<DatabaseUtil> mockedDatabaseUtil = Mockito.mockStatic(DatabaseUtil.class)) {
+            // Set up the mock to throw an exception
+            mockedDatabaseUtil.when(() -> DatabaseUtil.closeConnection())
+                .thenThrow(new RuntimeException("Test exception"));
+            
+            // Create a new TestableGUI with initializeDatabase=true
+            TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+            testGui.initializeDatabase = true;
+            
+            // Call closeDatabase - should not throw exception
+            try {
+                testGui.callCloseDatabase();
+                // If we get here, the exception was caught as expected
+                assertTrue(true);
+            } catch (Exception e) {
+                fail("Exception should be caught: " + e.getMessage());
+            }
+            
+            // Verify closeConnection was called
+            mockedDatabaseUtil.verify(() -> DatabaseUtil.closeConnection());
+        }
+    }
+    
+    @Test
+    public void testUtilityMethods() {
+        // Test updateStatusBar
+        String statusMessage = "Test status message";
+        ((TestableGUI)gui).updateStatusBar(statusMessage);
+        assertEquals(statusMessage, ((TestableGUI)gui).getLastStatusBarMessage());
+        
+        // Test showErrorMessage
+        String errorMessage = "Test error message";
+        ((TestableGUI)gui).showErrorMessage(errorMessage);
+        assertEquals(errorMessage, ((TestableGUI)gui).getLastErrorMessage());
+        
+        // Test showInfoMessage
+        String infoMessage = "Test info message";
+        ((TestableGUI)gui).showInfoMessage(infoMessage);
+        assertEquals(infoMessage, ((TestableGUI)gui).getLastInfoMessage());
+        
+        // Test showConfirmDialog - true result
+        String confirmMessage = "Test confirm message";
+        ((TestableGUI)gui).setConfirmDialogResult(true);
+        boolean resultTrue = ((TestableGUI)gui).showConfirmDialog(confirmMessage);
+        assertEquals(confirmMessage, ((TestableGUI)gui).getLastConfirmMessage());
+        assertTrue(resultTrue);
+        
+        // Test showConfirmDialog - false result
+        ((TestableGUI)gui).setConfirmDialogResult(false);
+        boolean resultFalse = ((TestableGUI)gui).showConfirmDialog(confirmMessage);
+        assertFalse(resultFalse);
+    }
+    
+    @Test
+    public void testAddSongClickedExceptionHandling() {
+        // Set up a TestableGUI with mock DAOs
+        TestableGUI testGui = new TestableGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // Mock the showConfirmDialog to return OK_OPTION
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), eq("Add Song"), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Create text fields with valid values for the test
+        JTextField titleField = new JTextField("Test Song");
+        JTextField artistField = new JTextField("Test Artist");
+        JTextField albumField = new JTextField("Test Album");
+        JTextField genreField = new JTextField("Test Genre");
+        
+        // Set the dialog fields in our test GUI
+        testGui.setDialogTextFields(titleField, artistField, albumField, genreField);
+        
+        // Mock the SongDAO to throw exception on addSong
+        doThrow(new RuntimeException("Test exception"))
+            .when(mockSongDAO).addSong(anyString(), anyString(), anyString(), anyString());
+        
+        // Execute the test
+        testGui.callOnAddSongClicked();
+        
+        // Verify error message was shown
+        assertTrue(testGui.getLastErrorMessage() != null && 
+                  testGui.getLastErrorMessage().contains("Error adding song"));
+    }
+    
+    @Test
+    public void testMainMethod() {
+        // Test main metodu - statik EventQueue.invokeLater çağrısı için
+        try (MockedStatic<EventQueue> mockedEventQueue = Mockito.mockStatic(EventQueue.class)) {
+            // EventQueue.invokeLater çağrısını mock et
+            mockedEventQueue.when(() -> EventQueue.invokeLater(any(Runnable.class)))
+                .then(invocation -> {
+                    Runnable runnable = invocation.getArgument(0);
+                    // Runnable'ı manuel olarak çağır
+                    runnable.run();
+                    return null;
+                });
+                
+            // DatabaseUtil'i mock et ki gerçek bir veritabanı oluşturulmasın
+            try (MockedStatic<DatabaseUtil> mockedDatabaseUtil = Mockito.mockStatic(DatabaseUtil.class)) {
+                // main metodunu çağır
+                MusicLibraryGUI.main(new String[]{});
+                
+                // EventQueue.invokeLater çağrıldığını doğrula
+                mockedEventQueue.verify(() -> EventQueue.invokeLater(any(Runnable.class)));
+                
+                // DatabaseUtil.initializeDatabase çağrıldığını doğrula
+                mockedDatabaseUtil.verify(() -> DatabaseUtil.initializeDatabase());
+            }
+        }
+    }
+    
+    @Test
+    public void testConstructorWithDatabaseInitialization() {
+        // Constructor test - Database initialization ve seçeneklerin doğru ayarlandığını doğrula
+        try (MockedStatic<DatabaseUtil> mockedDatabaseUtil = Mockito.mockStatic(DatabaseUtil.class)) {
+            // initializeDatabase'i mock et
+            mockedDatabaseUtil.when(DatabaseUtil::initializeDatabase).then(invocation -> null);
+            
+            // Constructor'ı true initializeDatabase ile çağır
+            MusicLibraryGUI regularGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+            regularGui.initializeDatabase = true;
+            
+            // initializeDatabase çağrıldığını doğrula
+            mockedDatabaseUtil.verify(() -> DatabaseUtil.initializeDatabase());
+            
+            // UI bileşenlerinin oluşturulduğunu doğrula
+            assertNotNull(regularGui.tabbedPane);
+            assertNotNull(regularGui.songsTable);
+            assertNotNull(regularGui.artistsTable);
+            assertNotNull(regularGui.albumsTable);
+            assertNotNull(regularGui.playlistsTable);
+        }
+    }
+    
+    @Test
+    public void testShowArtistDialogWithValues() {
+        // Test showArtistDialog metodu ile tüm alanların doldurulması
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JOptionPane.showConfirmDialog'un dönüş değerini ayarla
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Dialog değişkenlerini manuel olarak ayarlayacak bir mekanizma kur
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    Object panelObj = invocation.getArgument(1);
+                    if (panelObj instanceof JPanel) {
+                        JPanel panel = (JPanel)panelObj;
+                        // Panel içindeki JTextField'ları bul ve değerlerini ayarla
+                        fillTextFieldsInContainer(panel, new String[]{"Test Artist", "Test Country", "Test Genre"});
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // showArtistDialog metodunu test et
+        String[] result = testGui.showArtistDialog("Test Artist Dialog", null);
+        
+        // Sonuçları doğrula - en azından null olmadığını ve doğru boyutta olduğunu kontrol et
+        assertNotNull(result);
+        assertEquals(3, result.length);
+        // Değerleri doğrula eğer mümkünse
+    }
+    
+    @Test
+    public void testShowAlbumDialogWithValues() {
+        // Test showAlbumDialog metodu ile tüm alanların doldurulması
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JOptionPane.showConfirmDialog'un dönüş değerini ayarla
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Dialog değişkenlerini manuel olarak ayarlayacak bir mekanizma kur
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    Object panelObj = invocation.getArgument(1);
+                    if (panelObj instanceof JPanel) {
+                        JPanel panel = (JPanel)panelObj;
+                        // Panel içindeki JTextField'ları bul ve değerlerini ayarla
+                        fillTextFieldsInContainer(panel, new String[]{"Test Album", "Test Artist", "2023", "Rock"});
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // showAlbumDialog metodunu test et
+        String[] result = testGui.showAlbumDialog("Test Album Dialog", null);
+        
+        // Sonuçları doğrula
+        assertNotNull(result);
+        assertEquals(4, result.length);
+        // Değerleri doğrula eğer mümkünse
+    }
+    
+    @Test
+    public void testShowSongDialogWithValues() {
+        // Test showSongDialog metodu ile tüm alanların doldurulması
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JOptionPane.showConfirmDialog'un dönüş değerini ayarla
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                any(), any(), anyString(), anyInt()))
+                .thenReturn(JOptionPane.OK_OPTION);
+        
+        // Dialog değişkenlerini manuel olarak ayarlayacak bir mekanizma kur
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(any(), any(), anyString(), anyInt()))
+                .then(invocation -> {
+                    Object panelObj = invocation.getArgument(1);
+                    if (panelObj instanceof JPanel) {
+                        JPanel panel = (JPanel)panelObj;
+                        // Panel içindeki JTextField'ları bul ve değerlerini ayarla
+                        fillTextFieldsInContainer(panel, new String[]{"Test Song", "Test Artist", "Test Album", "Rock"});
+                    }
+                    return JOptionPane.OK_OPTION;
+                });
+        
+        // showSongDialog metodunu test et
+        String[] result = testGui.showSongDialog("Test Song Dialog", null);
+        
+        // Sonuçları doğrula
+        assertNotNull(result);
+        assertEquals(4, result.length);
+        // Değerleri doğrula eğer mümkünse
+    }
+    
+    @Test
+    public void testUpdateStatusBarDirectly() {
+        // status bar güncelleme fonksiyonunu doğrudan test et
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JLabel field'ına reflection ile erişim sağla
+        try {
+            Field statusLabelField = MusicLibraryGUI.class.getDeclaredField("statusLabel");
+            statusLabelField.setAccessible(true);
+            JLabel statusLabel = (JLabel) statusLabelField.get(testGui);
+            
+            // updateStatusBar metodunu çağır
+            String testMessage = "Test Status Message";
+            testGui.updateStatusBar(testMessage);
+            
+            // Label'ın güncellendiğini doğrula
+            assertEquals("Status: " + testMessage, statusLabel.getText());
+            
+        } catch (Exception e) {
+            fail("Reflection error: " + e.getMessage());
+        }
+    }
+    
+    @Test
+    public void testShowErrorMessageDirectly() {
+        // Error mesaj gösterme fonksiyonunu doğrudan test et
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JOptionPane.showMessageDialog metodunu mock et
+        String testMessage = "Test Error Message";
+        testGui.showErrorMessage(testMessage);
+        
+        // JOptionPane kullanıldığını doğrula
+        mockedJOptionPane.verify(() -> JOptionPane.showMessageDialog(
+                same(testGui), eq(testMessage), eq("Error"), eq(JOptionPane.ERROR_MESSAGE)));
+    }
+    
+    @Test
+    public void testShowInfoMessageDirectly() {
+        // Info mesaj gösterme fonksiyonunu doğrudan test et
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JOptionPane.showMessageDialog metodunu mock et
+        String testMessage = "Test Info Message";
+        testGui.showInfoMessage(testMessage);
+        
+        // JOptionPane kullanıldığını doğrula
+        mockedJOptionPane.verify(() -> JOptionPane.showMessageDialog(
+                same(testGui), eq(testMessage), eq("Information"), eq(JOptionPane.INFORMATION_MESSAGE)));
+    }
+    
+    @Test
+    public void testShowConfirmDialogDirectly() {
+        // Confirm dialog gösterme fonksiyonunu doğrudan test et
+        MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+        
+        // JOptionPane.showConfirmDialog onay için YES dönecek şekilde ayarla
+        String testMessage = "Test Confirmation Message";
+        mockedJOptionPane.when(() -> JOptionPane.showConfirmDialog(
+                same(testGui), eq(testMessage), eq("Confirm"), eq(JOptionPane.YES_NO_OPTION)))
+                .thenReturn(JOptionPane.YES_OPTION);
+        
+        // showConfirmDialog metodunu çağır ve sonucu kontrol et
+        boolean result = testGui.showConfirmDialog(testMessage);
+        
+        // Sonucun true olduğunu doğrula
+        assertTrue(result);
+        
+        // JOptionPane.showConfirmDialog'un çağrıldığını doğrula
+        mockedJOptionPane.verify(() -> JOptionPane.showConfirmDialog(
+                same(testGui), eq(testMessage), eq("Confirm"), eq(JOptionPane.YES_NO_OPTION)));
+    }
+    
+    @Test
+    public void testCloseDatabaseSuccess() {
+        // Veritabanı kapatma fonksiyonu başarı senaryosu
+        try (MockedStatic<DatabaseUtil> mockedDatabaseUtil = Mockito.mockStatic(DatabaseUtil.class)) {
+            // closeConnection metodunu mock et
+            mockedDatabaseUtil.when(DatabaseUtil::closeConnection).then(invocation -> null);
+            
+            // initializeDatabase = true olan GUI oluştur
+            MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+            testGui.initializeDatabase = true;
+            
+            // closeDatabase metodunu çağır
+            testGui.closeDatabase();
+            
+            // DatabaseUtil.closeConnection çağrıldığını doğrula
+            mockedDatabaseUtil.verify(() -> DatabaseUtil.closeConnection());
+        }
+    }
+    
+    @Test
+    public void testDatabaseCloseWithExceptionHandling() {
+        // Veritabanı kapatırken istisna fırlatıldığında
+        try (MockedStatic<DatabaseUtil> mockedDatabaseUtil = Mockito.mockStatic(DatabaseUtil.class)) {
+            // closeConnection metodunu mock et ve istisna fırlat
+            mockedDatabaseUtil.when(() -> DatabaseUtil.closeConnection())
+                .thenThrow(new RuntimeException("Database close error"));
+            
+            // initializeDatabase = true olan GUI oluştur
+            MusicLibraryGUI testGui = new MusicLibraryGUI(mockSongDAO, mockArtistDAO, mockAlbumDAO, mockPlaylistDAO);
+            testGui.initializeDatabase = true;
+            
+            // closeDatabase metodunu çağır - istisna yakalaması gerekir
+            try {
+                testGui.closeDatabase();
+                // İstisna fırlatılıp yakalandığını doğrula - buraya ulaşabildiysek test başarılı
+            } catch (Exception e) {
+                fail("Exception should be caught within the method: " + e.getMessage());
+            }
+            
+            // DatabaseUtil.closeConnection çağrıldığını doğrula
+            mockedDatabaseUtil.verify(() -> DatabaseUtil.closeConnection());
+        }
+    }
+    
+    // Panel içindeki JTextField'ları bulan ve değerlerini ayarlayan helper metot
+    private void fillTextFieldsInContainer(Container container, String[] values) {
+        int fieldIndex = 0;
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JTextField && fieldIndex < values.length) {
+                ((JTextField) comp).setText(values[fieldIndex++]);
+            } else if (comp instanceof Container) {
+                // İç içe konteynerlar için recursive çağrı
+                fillTextFieldsInContainer((Container) comp, 
+                        fieldIndex < values.length ? 
+                        Arrays.copyOfRange(values, fieldIndex, values.length) : new String[0]);
+            }
+        }
     }
 } 

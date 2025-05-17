@@ -445,41 +445,15 @@ public class MusicLibraryGUI extends JFrame {
      */
     protected void onAddSongClicked() {
         try {
-            // Create input fields
-            JPanel panel = new JPanel();
-            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            // Show dialog for adding song
+            String[] values = showSongDialog("Add Song", null);
             
-            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            titlePanel.add(new JLabel("Title:"));
-            javax.swing.JTextField titleField = new javax.swing.JTextField(20);
-            titlePanel.add(titleField);
-            panel.add(titlePanel);
-            
-            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            artistPanel.add(new JLabel("Artist:"));
-            javax.swing.JTextField artistField = new javax.swing.JTextField(20);
-            artistPanel.add(artistField);
-            panel.add(artistPanel);
-            
-            JPanel albumPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            albumPanel.add(new JLabel("Album:"));
-            javax.swing.JTextField albumField = new javax.swing.JTextField(20);
-            albumPanel.add(albumField);
-            panel.add(albumPanel);
-            
-            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            genrePanel.add(new JLabel("Genre:"));
-            javax.swing.JTextField genreField = new javax.swing.JTextField(20);
-            genrePanel.add(genreField);
-            panel.add(genrePanel);
-            
-            // Show dialog
-            int result = JOptionPane.showConfirmDialog(this, panel, "Add Song", JOptionPane.OK_CANCEL_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-                String title = titleField.getText().trim();
-                String artist = artistField.getText().trim();
-                String album = albumField.getText().trim();
-                String genre = genreField.getText().trim();
+            // Process result
+            if (values != null) {
+                String title = values[0].trim();
+                String artist = values[1].trim();
+                String album = values[2].trim();
+                String genre = values[3].trim();
                 
                 // Validate input
                 if (title.isEmpty() || artist.isEmpty() || album.isEmpty() || genre.isEmpty()) {
@@ -496,12 +470,69 @@ public class MusicLibraryGUI extends JFrame {
                     model.addRow(new Object[] {title, artist, album, genre});
                     updateStatusBar("Song added successfully");
                 } catch (Exception ex) {
-                    showErrorMessage("Failed to add song to database: " + ex.getMessage());
+                    showErrorMessage("Error adding song: " + ex.getMessage());
                 }
             }
         } catch (Exception e) {
             showErrorMessage("Error adding song: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Show dialog for song input
+     * @param title Dialog title
+     * @param initialValues Initial values (null for new songs)
+     * @return Array with [title, artist, album, genre] or null if canceled
+     */
+    protected String[] showSongDialog(String title, String[] initialValues) {
+        // Create input fields
+        JPanel panel = new JPanel();
+        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+        
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        titlePanel.add(new JLabel("Title:"));
+        javax.swing.JTextField titleField = new javax.swing.JTextField(20);
+        titlePanel.add(titleField);
+        panel.add(titlePanel);
+        
+        JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        artistPanel.add(new JLabel("Artist:"));
+        javax.swing.JTextField artistField = new javax.swing.JTextField(20);
+        artistPanel.add(artistField);
+        panel.add(artistPanel);
+        
+        JPanel albumPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        albumPanel.add(new JLabel("Album:"));
+        javax.swing.JTextField albumField = new javax.swing.JTextField(20);
+        albumPanel.add(albumField);
+        panel.add(albumPanel);
+        
+        JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        genrePanel.add(new JLabel("Genre:"));
+        javax.swing.JTextField genreField = new javax.swing.JTextField(20);
+        genrePanel.add(genreField);
+        panel.add(genrePanel);
+        
+        // Set initial values if provided
+        if (initialValues != null && initialValues.length >= 4) {
+            titleField.setText(initialValues[0]);
+            artistField.setText(initialValues[1]);
+            albumField.setText(initialValues[2]);
+            genreField.setText(initialValues[3]);
+        }
+        
+        // Show dialog
+        int result = JOptionPane.showConfirmDialog(this, panel, title, JOptionPane.OK_CANCEL_OPTION);
+        if (result == JOptionPane.OK_OPTION) {
+            return new String[] {
+                titleField.getText().trim(),
+                artistField.getText().trim(),
+                albumField.getText().trim(),
+                genreField.getText().trim()
+            };
+        } else {
+            return null;
         }
     }
     
@@ -523,48 +554,23 @@ public class MusicLibraryGUI extends JFrame {
             String oldAlbum = (String) model.getValueAt(selectedRow, 2);
             String oldGenre = (String) model.getValueAt(selectedRow, 3);
             
-            // Create input fields
-            JPanel panel = new JPanel();
-            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            // Show dialog for editing song with initial values
+            String[] initialValues = {oldTitle, oldArtist, oldAlbum, oldGenre};
+            String[] newValues = showSongDialog("Edit Song", initialValues);
             
-            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            titlePanel.add(new JLabel("Title:"));
-            javax.swing.JTextField titleField = new javax.swing.JTextField(oldTitle, 20);
-            titlePanel.add(titleField);
-            panel.add(titlePanel);
-            
-            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            artistPanel.add(new JLabel("Artist:"));
-            javax.swing.JTextField artistField = new javax.swing.JTextField(oldArtist, 20);
-            artistPanel.add(artistField);
-            panel.add(artistPanel);
-            
-            JPanel albumPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            albumPanel.add(new JLabel("Album:"));
-            javax.swing.JTextField albumField = new javax.swing.JTextField(oldAlbum, 20);
-            albumPanel.add(albumField);
-            panel.add(albumPanel);
-            
-            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            genrePanel.add(new JLabel("Genre:"));
-            javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre, 20);
-            genrePanel.add(genreField);
-            panel.add(genrePanel);
-            
-            // Show dialog
-            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Song", JOptionPane.OK_CANCEL_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-                String newTitle = titleField.getText().trim();
-                String newArtist = artistField.getText().trim();
-                String newAlbum = albumField.getText().trim();
-                String newGenre = genreField.getText().trim();
+            // Process result
+            if (newValues != null) {
+                String newTitle = newValues[0];
+                String newArtist = newValues[1];
+                String newAlbum = newValues[2];
+                String newGenre = newValues[3];
                 
                 // Validate input
                 if (newTitle.isEmpty() || newArtist.isEmpty() || newAlbum.isEmpty() || newGenre.isEmpty()) {
                     showErrorMessage("All fields are required");
-					return;
-				}
-				
+                    return;
+                }
+                
                 // Update song in database
                 boolean success = songDAO.updateSong(oldTitle, oldArtist, oldAlbum, newTitle, newArtist, newAlbum, newGenre);
                 
@@ -629,50 +635,30 @@ public class MusicLibraryGUI extends JFrame {
      */
     protected void onAddArtistClicked() {
         try {
-            // Create input fields
-            JPanel panel = new JPanel();
-            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            // Show dialog for adding artist
+            String[] values = showArtistDialog("Add Artist", null);
             
-            JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            namePanel.add(new JLabel("Name:"));
-            javax.swing.JTextField nameField = new javax.swing.JTextField(20);
-            namePanel.add(nameField);
-            panel.add(namePanel);
-            
-            JPanel countryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            countryPanel.add(new JLabel("Country:"));
-            javax.swing.JTextField countryField = new javax.swing.JTextField(20);
-            countryPanel.add(countryField);
-            panel.add(countryPanel);
-            
-            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            genrePanel.add(new JLabel("Genre:"));
-            javax.swing.JTextField genreField = new javax.swing.JTextField(20);
-            genrePanel.add(genreField);
-            panel.add(genrePanel);
-            
-            // Show dialog
-            int result = JOptionPane.showConfirmDialog(this, panel, "Add Artist", JOptionPane.OK_CANCEL_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-					String name = nameField.getText().trim();
-					String country = countryField.getText().trim();
-					String genre = genreField.getText().trim();
-					
+            // Process result
+            if (values != null) {
+                String name = values[0].trim();
+                String country = values[1].trim();
+                String genre = values[2].trim();
+                
                 // Validate input
-					if (name.isEmpty() || country.isEmpty() || genre.isEmpty()) {
+                if (name.isEmpty() || country.isEmpty() || genre.isEmpty()) {
                     showErrorMessage("All fields are required");
-						return;
-					}
-					
+                    return;
+                }
+                
                 // Add artist to database
-						boolean success = artistDAO.addArtist(name, country, genre, 1);
-						
-						if (success) {
+                boolean success = artistDAO.addArtist(name, country, genre, 1);
+                
+                if (success) {
                     // Update table
                     DefaultTableModel model = (DefaultTableModel) artistsTable.getModel();
                     model.addRow(new Object[] {name, country, genre});
                     updateStatusBar("Artist added successfully");
-						} else {
+                } else {
                     showErrorMessage("Failed to add artist to database");
                 }
             }
@@ -699,35 +685,15 @@ public class MusicLibraryGUI extends JFrame {
             String oldCountry = (String) model.getValueAt(selectedRow, 1);
             String oldGenre = (String) model.getValueAt(selectedRow, 2);
             
-            // Create input fields
-            JPanel panel = new JPanel();
-            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            // Show dialog for editing artist
+            String[] values = showArtistDialog("Edit Artist", new String[]{oldName, oldCountry, oldGenre});
             
-            JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            namePanel.add(new JLabel("Name:"));
-            javax.swing.JTextField nameField = new javax.swing.JTextField(oldName, 20);
-            namePanel.add(nameField);
-            panel.add(namePanel);
-            
-            JPanel countryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            countryPanel.add(new JLabel("Country:"));
-            javax.swing.JTextField countryField = new javax.swing.JTextField(oldCountry, 20);
-            countryPanel.add(countryField);
-            panel.add(countryPanel);
-            
-            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            genrePanel.add(new JLabel("Genre:"));
-            javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre, 20);
-            genrePanel.add(genreField);
-            panel.add(genrePanel);
-            
-            // Show dialog
-            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Artist", JOptionPane.OK_CANCEL_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-				String newName = nameField.getText().trim();
-				String newCountry = countryField.getText().trim();
-				String newGenre = genreField.getText().trim();
-				
+            // Process result
+            if (values != null) {
+                String newName = values[0].trim();
+                String newCountry = values[1].trim();
+                String newGenre = values[2].trim();
+                
                 // Validate input
                 if (newName.isEmpty() || newCountry.isEmpty() || newGenre.isEmpty()) {
                     showErrorMessage("All fields are required");
@@ -751,6 +717,52 @@ public class MusicLibraryGUI extends JFrame {
             showErrorMessage("Error updating artist: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Shows a dialog for adding or editing an artist
+     * @param title Dialog title
+     * @param initialValues Initial values for the fields (null for empty fields)
+     * @return String array with the entered values, or null if canceled
+     */
+    protected String[] showArtistDialog(String title, String[] initialValues) {
+        // Create input fields
+        JPanel panel = new JPanel();
+        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+        
+        JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        namePanel.add(new JLabel("Name:"));
+        javax.swing.JTextField nameField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[0] : "", 20);
+        namePanel.add(nameField);
+        panel.add(namePanel);
+        
+        JPanel countryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        countryPanel.add(new JLabel("Country:"));
+        javax.swing.JTextField countryField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[1] : "", 20);
+        countryPanel.add(countryField);
+        panel.add(countryPanel);
+        
+        JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        genrePanel.add(new JLabel("Genre:"));
+        javax.swing.JTextField genreField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[2] : "", 20);
+        genrePanel.add(genreField);
+        panel.add(genrePanel);
+        
+        // Show dialog
+        int result = JOptionPane.showConfirmDialog(this, panel, title, JOptionPane.OK_CANCEL_OPTION);
+        
+        if (result == JOptionPane.OK_OPTION) {
+            return new String[] {
+                nameField.getText(),
+                countryField.getText(),
+                genreField.getText()
+            };
+        }
+        
+        return null;
     }
     
     /**
@@ -795,58 +807,31 @@ public class MusicLibraryGUI extends JFrame {
      */
     protected void onAddAlbumClicked() {
         try {
-            // Create input fields
-            JPanel panel = new JPanel();
-            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            // Show dialog for adding album
+            String[] values = showAlbumDialog("Add Album", null);
             
-            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            titlePanel.add(new JLabel("Title:"));
-            javax.swing.JTextField titleField = new javax.swing.JTextField(20);
-            titlePanel.add(titleField);
-            panel.add(titlePanel);
-            
-            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            artistPanel.add(new JLabel("Artist:"));
-            javax.swing.JTextField artistField = new javax.swing.JTextField(20);
-            artistPanel.add(artistField);
-            panel.add(artistPanel);
-            
-            JPanel yearPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            yearPanel.add(new JLabel("Year:"));
-            javax.swing.JTextField yearField = new javax.swing.JTextField(
-                    String.valueOf(java.time.LocalDate.now().getYear()), 20);
-            yearPanel.add(yearField);
-            panel.add(yearPanel);
-            
-            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            genrePanel.add(new JLabel("Genre:"));
-            javax.swing.JTextField genreField = new javax.swing.JTextField(20);
-            genrePanel.add(genreField);
-            panel.add(genrePanel);
-            
-            // Show dialog
-            int result = JOptionPane.showConfirmDialog(this, panel, "Add Album", JOptionPane.OK_CANCEL_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-				String title = titleField.getText().trim();
-				String artist = artistField.getText().trim();
-				String year = yearField.getText().trim();
-				String genre = genreField.getText().trim();
-				
+            // Process result
+            if (values != null) {
+                String title = values[0].trim();
+                String artist = values[1].trim();
+                String year = values[2].trim();
+                String genre = values[3].trim();
+                
                 // Validate input
-				if (title.isEmpty() || artist.isEmpty() || year.isEmpty() || genre.isEmpty()) {
+                if (title.isEmpty() || artist.isEmpty() || year.isEmpty() || genre.isEmpty()) {
                     showErrorMessage("All fields are required");
-					return;
-				}
-				
+                    return;
+                }
+                
                 // Add album to database
-					boolean success = albumDAO.addAlbum(title, artist, year, genre, 1);
-					
-					if (success) {
+                boolean success = albumDAO.addAlbum(title, artist, year, genre, 1);
+                
+                if (success) {
                     // Update table
                     DefaultTableModel model = (DefaultTableModel) albumsTable.getModel();
-						model.addRow(new Object[] {title, artist, year, genre});
+                    model.addRow(new Object[] {title, artist, year, genre});
                     updateStatusBar("Album added successfully");
-					} else {
+                } else {
                     showErrorMessage("Failed to add album to database");
                 }
             }
@@ -854,6 +839,60 @@ public class MusicLibraryGUI extends JFrame {
             showErrorMessage("Error adding album: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Shows a dialog for adding or editing an album
+     * @param title Dialog title
+     * @param initialValues Initial values for the fields (null for empty fields)
+     * @return String array with the entered values, or null if canceled
+     */
+    protected String[] showAlbumDialog(String title, String[] initialValues) {
+        // Create input fields
+        JPanel panel = new JPanel();
+        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+        
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        titlePanel.add(new JLabel("Title:"));
+        javax.swing.JTextField titleField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[0] : "", 20);
+        titlePanel.add(titleField);
+        panel.add(titlePanel);
+        
+        JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        artistPanel.add(new JLabel("Artist:"));
+        javax.swing.JTextField artistField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[1] : "", 20);
+        artistPanel.add(artistField);
+        panel.add(artistPanel);
+        
+        JPanel yearPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        yearPanel.add(new JLabel("Year:"));
+        javax.swing.JTextField yearField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[2] : String.valueOf(java.time.LocalDate.now().getYear()), 20);
+        yearPanel.add(yearField);
+        panel.add(yearPanel);
+        
+        JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        genrePanel.add(new JLabel("Genre:"));
+        javax.swing.JTextField genreField = new javax.swing.JTextField(
+                initialValues != null ? initialValues[3] : "", 20);
+        genrePanel.add(genreField);
+        panel.add(genrePanel);
+        
+        // Show dialog
+        int result = JOptionPane.showConfirmDialog(this, panel, title, JOptionPane.OK_CANCEL_OPTION);
+        
+        if (result == JOptionPane.OK_OPTION) {
+            return new String[] {
+                titleField.getText(),
+                artistField.getText(),
+                yearField.getText(),
+                genreField.getText()
+            };
+        }
+        
+        return null;
     }
     
     /**
@@ -865,7 +904,7 @@ public class MusicLibraryGUI extends JFrame {
             showErrorMessage("Please select an album to edit");
 				return;
 			}
-			
+        
         try {
             // Get selected album data
             DefaultTableModel model = (DefaultTableModel) albumsTable.getModel();
@@ -874,42 +913,16 @@ public class MusicLibraryGUI extends JFrame {
             String oldYear = (String) model.getValueAt(selectedRow, 2);
             String oldGenre = (String) model.getValueAt(selectedRow, 3);
             
-            // Create input fields
-            JPanel panel = new JPanel();
-            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            // Show dialog for editing album
+            String[] values = showAlbumDialog("Edit Album", new String[]{oldTitle, oldArtist, oldYear, oldGenre});
             
-            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            titlePanel.add(new JLabel("Title:"));
-            javax.swing.JTextField titleField = new javax.swing.JTextField(oldTitle, 20);
-            titlePanel.add(titleField);
-            panel.add(titlePanel);
-            
-            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            artistPanel.add(new JLabel("Artist:"));
-            javax.swing.JTextField artistField = new javax.swing.JTextField(oldArtist, 20);
-            artistPanel.add(artistField);
-            panel.add(artistPanel);
-            
-            JPanel yearPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            yearPanel.add(new JLabel("Year:"));
-            javax.swing.JTextField yearField = new javax.swing.JTextField(oldYear, 20);
-            yearPanel.add(yearField);
-            panel.add(yearPanel);
-            
-            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            genrePanel.add(new JLabel("Genre:"));
-            javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre, 20);
-            genrePanel.add(genreField);
-            panel.add(genrePanel);
-            
-            // Show dialog
-            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Album", JOptionPane.OK_CANCEL_OPTION);
-            if (result == JOptionPane.OK_OPTION) {
-				String newTitle = titleField.getText().trim();
-				String newArtist = artistField.getText().trim();
-				String newYear = yearField.getText().trim();
-				String newGenre = genreField.getText().trim();
-				
+            // Process result
+            if (values != null) {
+                String newTitle = values[0].trim();
+                String newArtist = values[1].trim();
+                String newYear = values[2].trim();
+                String newGenre = values[3].trim();
+                
                 // Validate input
                 if (newTitle.isEmpty() || newArtist.isEmpty() || newYear.isEmpty() || newGenre.isEmpty()) {
                     showErrorMessage("All fields are required");
