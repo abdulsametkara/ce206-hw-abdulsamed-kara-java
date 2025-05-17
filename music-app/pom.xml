@@ -107,7 +107,26 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.11</version>
+			<version>4.13.2</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- JUnit 5 (Jupiter) -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>5.9.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.9.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
+			<version>5.9.2</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -120,14 +139,21 @@
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
-			<version>3.12.4</version>
+			<version>4.8.0</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- Mockito Inline - static metodları mocklamak için -->
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-inline</artifactId>
-			<version>3.12.4</version>
+			<version>4.8.0</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Mockito JUnit Jupiter -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>4.8.0</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- PowerMock -->
@@ -176,11 +202,13 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.22.1</version>
+				<version>2.22.2</version>
 				<configuration>
-					<excludes>
-						<exclude>**/MusicCollectionViewTest.java</exclude>
-					</excludes>
+					<!-- Configure surefire to use both JUnit 4 and 5 -->
+					<includes>
+						<include>**/*Test.java</include>
+					</includes>
+					<failIfNoTests>false</failIfNoTests>
 				</configuration>
 			</plugin>
 			

@@ -1,61 +1,90 @@
 package com.samet.music.gui;
 
-import java.awt.EventQueue;
-
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.border.EmptyBorder;
-import javax.swing.JMenuBar;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JSplitPane;
 import java.awt.BorderLayout;
-import javax.swing.JList;
-import javax.swing.JTable;
-import javax.swing.JButton;
-import com.samet.music.dao.SongDAO;
-import com.samet.music.dao.AlbumDAO;
-import com.samet.music.dao.ArtistDAO;
-import com.samet.music.dao.PlaylistDAO;
-import com.samet.music.util.DatabaseUtil;
+import java.awt.EventQueue;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.SwingConstants;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
+
+import com.samet.music.dao.AlbumDAO;
+import com.samet.music.dao.ArtistDAO;
+import com.samet.music.dao.PlaylistDAO;
+import com.samet.music.dao.SongDAO;
+import com.samet.music.util.DatabaseUtil;
+
+/**
+ * MusicLibraryGUI - Main GUI class for the music library application
+ * Designed for testability with dependency injection and protected methods
+ */
 public class MusicLibraryGUI extends JFrame {
 
 	private static final long serialVersionUID = 1L;
 
-	private JTable allSongsTable;
-	private javax.swing.JLabel statusBar;
-	private JTable playlistsTable;
-	private JTable artistsTable;
-	private JButton btnAdd;
-	private JButton btnEditAllSongs;
-	private JButton btnDeleteAllSongs;
-	private JButton btnCreatePlaylist;
-	private JButton btnMetadata;
-	private JButton btnAddToPlaylist;
-	private JButton btnRemoveFromPlaylist;
-	private JButton btnAddArtist;
-	private JButton btnEditPlaylists;
-	private JButton btnDeletePlaylists;
-	private JButton btnEditArtists;
-	private JButton btnDeleteArtists;
-	private SongDAO songDAO;
-	private AlbumDAO albumDAO;
-	private ArtistDAO artistDAO;
-	private PlaylistDAO playlistDAO;
+    // UI Components
+    protected JTabbedPane tabbedPane;
+    protected JTable songsTable;
+    protected JTable artistsTable;
+    protected JTable albumsTable;
+    protected JTable playlistsTable;
+    protected JLabel statusLabel;
+    
+    // Buttons for songs tab
+    protected JButton btnAddSong;
+    protected JButton btnEditSong;
+    protected JButton btnDeleteSong;
+    
+    // Buttons for artists tab
+    protected JButton btnAddArtist;
+    protected JButton btnEditArtist;
+    protected JButton btnDeleteArtist;
+    
+    // Buttons for albums tab
+    protected JButton btnAddAlbum;
+    protected JButton btnEditAlbum;
+    protected JButton btnDeleteAlbum;
+    
+    // Buttons for playlists tab
+    protected JButton btnCreatePlaylist;
+    protected JButton btnEditPlaylist;
+    protected JButton btnDeletePlaylist;
+    protected JButton btnAddToPlaylist;
+    protected JButton btnRemoveFromPlaylist;
+    
+    // DAOs - protected for testability
+	protected SongDAO songDAO;
+	protected ArtistDAO artistDAO;
+    protected AlbumDAO albumDAO;
+	protected PlaylistDAO playlistDAO;
+    
+    // For testing purposes
+    protected boolean initializeDatabase = true;
 
 	/**
-	 * Launch the application.
+     * Main method to launch the application
 	 */
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					// Initialize database first
+                    // Initialize database
 					DatabaseUtil.initializeDatabase();
 					
+                    // Create and display the GUI
 					MusicLibraryGUI frame = new MusicLibraryGUI();
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -66,1008 +95,1113 @@ public class MusicLibraryGUI extends JFrame {
 	}
 
 	/**
-	 * Create the frame.
+     * Default constructor that creates the GUI with default DAOs
 	 */
 	public MusicLibraryGUI() {
-		// Initialize database connection
-		DatabaseUtil.initializeDatabase();
+        this(new SongDAO(), new ArtistDAO(), new AlbumDAO(), new PlaylistDAO());
+	}
+    
+    /**
+     * Constructor with DAO parameters for dependency injection (testability)
+     */
+    public MusicLibraryGUI(SongDAO songDAO, ArtistDAO artistDAO, AlbumDAO albumDAO, PlaylistDAO playlistDAO) {
+        // Set DAOs
+		this.songDAO = songDAO;
+		this.artistDAO = artistDAO;
+        this.albumDAO = albumDAO;
+		this.playlistDAO = playlistDAO;
 		
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 1000, 700);
-		setLocationRelativeTo(null);
+        // Initialize database if needed (can be disabled for testing)
+		if (initializeDatabase) {
+			DatabaseUtil.initializeDatabase();
+		}
 		
-		// Add window closing listener to ensure database connection is closed properly
+        // Set up the frame
+        setupFrame();
+        
+        // Create UI components
+        createUIComponents();
+        
+        // Load data from database
+        loadDataFromDatabase();
+        
+        // Add window listener to close database connection when window is closed
 		addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                DatabaseUtil.closeConnection();
-                System.out.println("Database connection closed on window closing");
+                closeDatabase();
             }
         });
-		
-		JMenuBar menuBar = new JMenuBar();
-		setJMenuBar(menuBar);
-		
-		JMenu mnNewMenu = new JMenu("File");
-		menuBar.add(mnNewMenu);
-		
-		JMenuItem mntmNewMenuItem = new JMenuItem("Import");
-		mnNewMenu.add(mntmNewMenuItem);
-		
-		JMenuItem mntmNewMenuItem_1 = new JMenuItem("Export");
-		mnNewMenu.add(mntmNewMenuItem_1);
-		
-		JMenuItem mntmNewMenuItem_2 = new JMenuItem("Exit");
-		mnNewMenu.add(mntmNewMenuItem_2);
-		
-		JMenu mnNewMenu_1 = new JMenu("Edit");
-		menuBar.add(mnNewMenu_1);
-		
-		JMenuItem mntmNewMenuItem_3 = new JMenuItem("Preferences");
-		mnNewMenu_1.add(mntmNewMenuItem_3);
-		
-		JMenuItem mntmNewMenuItem_4 = new JMenuItem("User Settings");
-		mnNewMenu_1.add(mntmNewMenuItem_4);
-		
-		JMenu mnNewMenu_2 = new JMenu("View");
-		menuBar.add(mnNewMenu_2);
-		
-		JMenuItem mntmNewMenuItem_7 = new JMenuItem("All Songs");
-		mnNewMenu_2.add(mntmNewMenuItem_7);
-		
-		JMenuItem mntmNewMenuItem_8 = new JMenuItem("Albums");
-		mnNewMenu_2.add(mntmNewMenuItem_8);
-		
-		JMenuItem mntmNewMenuItem_9 = new JMenuItem("Artists");
-		mnNewMenu_2.add(mntmNewMenuItem_9);
-		
-		JMenuItem mntmNewMenuItem_10 = new JMenuItem("Playlists");
-		mnNewMenu_2.add(mntmNewMenuItem_10);
-		
-		JMenuItem mntmNewMenuItem_11 = new JMenuItem("Recommendations");
-		mnNewMenu_2.add(mntmNewMenuItem_11);
-		
-		JMenuItem mntmNewMenuItem_12 = new JMenuItem("Theme (Açık/Koyu)");
-		mnNewMenu_2.add(mntmNewMenuItem_12);
-		
-		JMenu mnNewMenu_3 = new JMenu("Playlists");
-		menuBar.add(mnNewMenu_3);
-		
-		JMenuItem mntmNewMenuItem_13 = new JMenuItem("Create Playlist");
-		mnNewMenu_3.add(mntmNewMenuItem_13);
-		
-		JMenuItem mntmNewMenuItem_14 = new JMenuItem("Delete Playlist");
-		mnNewMenu_3.add(mntmNewMenuItem_14);
-		
-		JMenuItem mntmNewMenuItem_15 = new JMenuItem("Add Song to Playlist");
-		mnNewMenu_3.add(mntmNewMenuItem_15);
-		
-		JMenuItem mntmNewMenuItem_16 = new JMenuItem("Remove Song from Playlist");
-		mnNewMenu_3.add(mntmNewMenuItem_16);
-		
-		JMenu mnNewMenu_4 = new JMenu("Help");
-		menuBar.add(mnNewMenu_4);
-		
-		JMenuItem mntmNewMenuItem_5 = new JMenuItem("About");
-		mnNewMenu_4.add(mntmNewMenuItem_5);
-		
-		JMenuItem mntmNewMenuItem_6 = new JMenuItem("Documentation");
-		mnNewMenu_4.add(mntmNewMenuItem_6);
-		
-		JSplitPane splitPane = new JSplitPane();
-		getContentPane().add(splitPane, BorderLayout.CENTER);
-		
-		// Sol panel: Navigasyon
-		JPanel panel = new JPanel(new BorderLayout());
-		splitPane.setLeftComponent(panel);
-		
-		JList<String> list = new JList<>(new String[] {
-			"All Songs", "Albums", "Artists", "Playlists", "Recommendations"
-		});
-		panel.add(list, BorderLayout.CENTER);
-		
-		// Sağ panel: İçerik + araç çubuğu
-		JPanel panel_1 = new JPanel(new BorderLayout());
-		splitPane.setRightComponent(panel_1);
-		
-		// Sağ üst: Kullanıcı adı ve Logout
-		JPanel userPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-		javax.swing.JLabel userLabel = new javax.swing.JLabel("User: samet");
-		javax.swing.JButton btnLogout = new javax.swing.JButton("Logout");
-		userPanel.add(userLabel);
-		userPanel.add(btnLogout);
-		getContentPane().add(userPanel, BorderLayout.NORTH);
-
-		// Sağ panel: CardLayout ile içerik panelleri
-		JPanel cardPanel = new JPanel(new java.awt.CardLayout());
-		// All Songs Panel
-		JPanel allSongsPanel = new JPanel(new BorderLayout());
-		allSongsTable = new JTable();
-		allSongsTable.setModel(new javax.swing.table.DefaultTableModel(
-			new Object[][] {},
-			new String[] {"Title", "Artist", "Album", "Genre"}
-		));
-		allSongsPanel.add(new javax.swing.JScrollPane(allSongsTable), BorderLayout.CENTER);
-		// Albums Panel
-		JPanel albumsPanel = new JPanel(new BorderLayout());
-		JTable albumsTable = new JTable();
-		albumsTable.setModel(new javax.swing.table.DefaultTableModel(
-			new Object[][] {},
-			new String[] {"Album Title", "Artist", "Year", "Genre"}
-		));
-		albumsPanel.add(new javax.swing.JScrollPane(albumsTable), BorderLayout.CENTER);
-		// Artists Panel
-		JPanel artistsPanel = new JPanel(new BorderLayout());
-		artistsTable = new JTable();
-		artistsTable.setModel(new javax.swing.table.DefaultTableModel(
-			new Object[][] {},
-			new String[] {"Artist Name", "Country", "Genre"}
-		));
-		artistsPanel.add(new javax.swing.JScrollPane(artistsTable), BorderLayout.CENTER);
-		// Playlists Panel
-		JPanel playlistsPanel = new JPanel(new BorderLayout());
+    }
+    
+    /**
+     * Set up the main frame properties
+     */
+    protected void setupFrame() {
+        setTitle("Music Library Application");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setBounds(100, 100, 900, 600);
+        setLocationRelativeTo(null);
+        getContentPane().setLayout(new BorderLayout(0, 0));
+    }
+    
+    /**
+     * Create all UI components
+     */
+    protected void createUIComponents() {
+        // Create tabbed pane
+        tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+        getContentPane().add(tabbedPane, BorderLayout.CENTER);
+        
+        // Create panels for each tab
+        createSongsPanel();
+        createArtistsPanel();
+        createAlbumsPanel();
+        createPlaylistsPanel();
+        
+        // Create status bar
+        JPanel statusPanel = new JPanel();
+        statusPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+        statusLabel = new JLabel("Status: Ready");
+        statusLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+        statusPanel.add(statusLabel);
+        getContentPane().add(statusPanel, BorderLayout.SOUTH);
+    }
+    
+    /**
+     * Create the Songs panel and add it to the tabbed pane
+     */
+    protected void createSongsPanel() {
+        JPanel songsPanel = new JPanel();
+        songsPanel.setLayout(new BorderLayout(0, 0));
+        tabbedPane.addTab("Songs", null, songsPanel, null);
+        
+        // Create songs table
+        songsTable = new JTable();
+        DefaultTableModel songsModel = new DefaultTableModel(
+                new Object[][] {},
+                new String[] {"Title", "Artist", "Album", "Genre"}
+        ) {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        songsTable.setModel(songsModel);
+        JScrollPane scrollPane = new JScrollPane(songsTable);
+        songsPanel.add(scrollPane, BorderLayout.NORTH);
+        
+        // Create buttons panel
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        songsPanel.add(buttonsPanel, BorderLayout.SOUTH);
+        
+        // Create buttons
+        btnAddSong = new JButton("Add Song");
+        btnEditSong = new JButton("Edit Song");
+        btnDeleteSong = new JButton("Delete Song");
+        
+        // Add action listeners
+        btnAddSong.addActionListener(e -> onAddSongClicked());
+        btnEditSong.addActionListener(e -> onEditSongClicked());
+        btnDeleteSong.addActionListener(e -> onDeleteSongClicked());
+        
+        // Add buttons to panel
+        buttonsPanel.add(btnAddSong);
+        buttonsPanel.add(btnEditSong);
+        buttonsPanel.add(btnDeleteSong);
+    }
+    
+    /**
+     * Create the Artists panel and add it to the tabbed pane
+     */
+    protected void createArtistsPanel() {
+        JPanel artistsPanel = new JPanel();
+        artistsPanel.setLayout(new BorderLayout(0, 0));
+        tabbedPane.addTab("Artists", null, artistsPanel, null);
+        
+        // Create artists table
+        artistsTable = new JTable();
+        DefaultTableModel artistsModel = new DefaultTableModel(
+                new Object[][] {},
+                new String[] {"Name", "Country", "Genre"}
+        ) {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        artistsTable.setModel(artistsModel);
+        JScrollPane scrollPane = new JScrollPane(artistsTable);
+        artistsPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        // Create buttons panel
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        artistsPanel.add(buttonsPanel, BorderLayout.SOUTH);
+        
+        // Create buttons
+        btnAddArtist = new JButton("Add Artist");
+        btnEditArtist = new JButton("Edit Artist");
+        btnDeleteArtist = new JButton("Delete Artist");
+        
+        // Add action listeners
+        btnAddArtist.addActionListener(e -> onAddArtistClicked());
+        btnEditArtist.addActionListener(e -> onEditArtistClicked());
+        btnDeleteArtist.addActionListener(e -> onDeleteArtistClicked());
+        
+        // Add buttons to panel
+        buttonsPanel.add(btnAddArtist);
+        buttonsPanel.add(btnEditArtist);
+        buttonsPanel.add(btnDeleteArtist);
+    }
+    
+    /**
+     * Create the Albums panel and add it to the tabbed pane
+     */
+    protected void createAlbumsPanel() {
+        JPanel albumsPanel = new JPanel();
+        albumsPanel.setLayout(new BorderLayout(0, 0));
+        tabbedPane.addTab("Albums", null, albumsPanel, null);
+        
+        // Create albums table
+        albumsTable = new JTable();
+        DefaultTableModel albumsModel = new DefaultTableModel(
+                new Object[][] {},
+                new String[] {"Title", "Artist", "Year", "Genre"}
+        ) {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        albumsTable.setModel(albumsModel);
+        JScrollPane scrollPane = new JScrollPane(albumsTable);
+        albumsPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        // Create buttons panel
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        albumsPanel.add(buttonsPanel, BorderLayout.SOUTH);
+        
+        // Create buttons
+        btnAddAlbum = new JButton("Add Album");
+        btnEditAlbum = new JButton("Edit Album");
+        btnDeleteAlbum = new JButton("Delete Album");
+        
+        // Add action listeners
+        btnAddAlbum.addActionListener(e -> onAddAlbumClicked());
+        btnEditAlbum.addActionListener(e -> onEditAlbumClicked());
+        btnDeleteAlbum.addActionListener(e -> onDeleteAlbumClicked());
+        
+        // Add buttons to panel
+        buttonsPanel.add(btnAddAlbum);
+        buttonsPanel.add(btnEditAlbum);
+        buttonsPanel.add(btnDeleteAlbum);
+    }
+    
+    /**
+     * Create the Playlists panel and add it to the tabbed pane
+     */
+    protected void createPlaylistsPanel() {
+        JPanel playlistsPanel = new JPanel();
+        playlistsPanel.setLayout(new BorderLayout(0, 0));
+        tabbedPane.addTab("Playlists", null, playlistsPanel, null);
+        
+        // Create playlists table
 		playlistsTable = new JTable();
-		playlistsTable.setModel(new javax.swing.table.DefaultTableModel(
+        DefaultTableModel playlistsModel = new DefaultTableModel(
 			new Object[][] {},
-			new String[] {"Playlist Name", "Song Count", "Created"}
-		));
-		playlistsPanel.add(new javax.swing.JScrollPane(playlistsTable), BorderLayout.CENTER);
-		// Recommendations Panel
-		JPanel recommendationsPanel = new JPanel(new BorderLayout());
-		JTable recommendationsTable = new JTable();
-		recommendationsTable.setModel(new javax.swing.table.DefaultTableModel(
-			new Object[][] {},
-			new String[] {"Title", "Artist", "Reason"}
-		));
-		recommendationsPanel.add(new javax.swing.JScrollPane(recommendationsTable), BorderLayout.CENTER);
-		// CardPanel'a ekle
-		cardPanel.add(allSongsPanel, "All Songs");
-		cardPanel.add(albumsPanel, "Albums");
-		cardPanel.add(artistsPanel, "Artists");
-		cardPanel.add(playlistsPanel, "Playlists");
-		cardPanel.add(recommendationsPanel, "Recommendations");
-		// Sağ panelin ortasına CardPanel ekle
-		panel_1.add(cardPanel, BorderLayout.CENTER);
-		
-		// Araç çubuğu (butonlar)
-		JPanel toolBarPanel = new JPanel();
-		btnAdd = new JButton("Add Song");
-		btnEditAllSongs = new JButton("Edit");
-		btnDeleteAllSongs = new JButton("Delete");
+                new String[] {"Name", "Song Count", "Created Date"}
+        ) {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        playlistsTable.setModel(playlistsModel);
+        JScrollPane scrollPane = new JScrollPane(playlistsTable);
+        playlistsPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        // Create buttons panel
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        playlistsPanel.add(buttonsPanel, BorderLayout.SOUTH);
+        
+        // Create buttons
 		btnCreatePlaylist = new JButton("Create Playlist");
-		btnMetadata = new JButton("Metadata");
-		btnAddToPlaylist = new JButton("Add Song to Playlist");
-		btnRemoveFromPlaylist = new JButton("Remove Song from Playlist");
-		btnAddArtist = new JButton("Add Artist");
-		// Eksik olan butonları oluştur
-		btnEditPlaylists = new JButton("Edit");
-		btnDeletePlaylists = new JButton("Delete");
-		btnEditArtists = new JButton("Edit");
-		btnDeleteArtists = new JButton("Delete");
-		
-		// Butonları her panel için ayrı panellere ekle
-		JPanel allSongsButtonPanel = new JPanel();
-		allSongsButtonPanel.add(btnAdd);
-		allSongsButtonPanel.add(btnEditAllSongs);
-		allSongsButtonPanel.add(btnDeleteAllSongs);
-		allSongsButtonPanel.add(btnMetadata);
-		
-		JPanel playlistsButtonPanel = new JPanel();
-		playlistsButtonPanel.add(btnCreatePlaylist);
-		playlistsButtonPanel.add(btnEditPlaylists);
-		playlistsButtonPanel.add(btnDeletePlaylists);
-		playlistsButtonPanel.add(btnAddToPlaylist);
-		playlistsButtonPanel.add(btnRemoveFromPlaylist);
-		
-		JPanel artistsButtonPanel = new JPanel();
-		artistsButtonPanel.add(btnAddArtist);
-		artistsButtonPanel.add(btnEditArtists);
-		artistsButtonPanel.add(btnDeleteArtists);
-		
-		// Albums için panel ve butonlar
-		JPanel albumsButtonPanel = new JPanel();
-		JButton btnAddAlbum = new JButton("Add Album");
-		JButton btnEditAlbum = new JButton("Edit Album");
-		JButton btnDeleteAlbum = new JButton("Delete Album");
-		JButton btnViewSongs = new JButton("View Songs");
-		albumsButtonPanel.add(btnAddAlbum);
-		albumsButtonPanel.add(btnEditAlbum);
-		albumsButtonPanel.add(btnDeleteAlbum);
-		albumsButtonPanel.add(btnViewSongs);
-		
-		// Recommendations için panel
-		JPanel recommendationsButtonPanel = new JPanel();
-		JButton btnAddToFavorites = new JButton("Add Song");
-		JButton btnRefreshRecommendations = new JButton("Refresh");
-		recommendationsButtonPanel.add(btnAddToFavorites);
-		recommendationsButtonPanel.add(btnRefreshRecommendations);
-		
-		// CardLayout için buton paneli oluştur
-		JPanel buttonCardPanel = new JPanel(new java.awt.CardLayout());
-		buttonCardPanel.add(allSongsButtonPanel, "All Songs");
-		buttonCardPanel.add(albumsButtonPanel, "Albums");
-		buttonCardPanel.add(artistsButtonPanel, "Artists");
-		buttonCardPanel.add(playlistsButtonPanel, "Playlists");
-		buttonCardPanel.add(recommendationsButtonPanel, "Recommendations");
-		
-		// Buton panelini ekle
-		panel_1.add(buttonCardPanel, BorderLayout.SOUTH);
-		
-		// Durum çubuğu (en alt)
-		statusBar = new javax.swing.JLabel("Status: Ready");
-		getContentPane().add(statusBar, BorderLayout.SOUTH);
-
-		// JList seçim değişikliği ile CardLayout panelini değiştir - MOVED AFTER BUTTONS ARE INITIALIZED
-		list.addListSelectionListener(e -> {
-			if (!e.getValueIsAdjusting()) {
-				String selected = list.getSelectedValue();
-				// İçerik panelini değiştir
-				java.awt.CardLayout cl = (java.awt.CardLayout)(cardPanel.getLayout());
-				cl.show(cardPanel, selected);
-				
-				// Buton panelini değiştir
-				java.awt.CardLayout buttonCL = (java.awt.CardLayout)(buttonCardPanel.getLayout());
-				buttonCL.show(buttonCardPanel, selected);
-				
-				// Recommendations sayfasındaysa örnek tavsiyeler KALDIRDIK
-			}
-		});
-		
-		// Başlangıçta All Songs seçili olsun
-		list.setSelectedIndex(0);
-
-		// Modern ve profesyonel font ve renkler
-		java.awt.Font mainFont = new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 14);
-		java.awt.Color bgColor = new java.awt.Color(245, 246, 250); // Açık gri
-		java.awt.Color accentColor = new java.awt.Color(52, 152, 219); // Mavi
-		java.awt.Color buttonColor = new java.awt.Color(41, 128, 185); // Koyu mavi
-		java.awt.Color buttonTextColor = java.awt.Color.WHITE;
-		java.awt.Color listSelectionColor = new java.awt.Color(230, 240, 255);
-
-		// Menü bar ve menüler
-		menuBar.setFont(mainFont);
-		for (int i = 0; i < menuBar.getMenuCount(); i++) {
-			JMenu menu = menuBar.getMenu(i);
-			if (menu != null) {
-				menu.setFont(mainFont);
-				for (int j = 0; j < menu.getItemCount(); j++) {
-					JMenuItem item = menu.getItem(j);
-					if (item != null) item.setFont(mainFont);
-				}
-			}
-		}
-		menuBar.setBackground(bgColor);
-
-		// Sol panel ve JList
-		panel.setBackground(bgColor);
-		list.setFont(mainFont);
-		list.setBackground(bgColor);
-		list.setSelectionBackground(listSelectionColor);
-		list.setSelectionForeground(accentColor.darker());
-		list.setFixedCellHeight(32);
-		list.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-		// Sağ üst kullanıcı paneli
-		userPanel.setBackground(bgColor);
-		userLabel.setFont(mainFont.deriveFont(java.awt.Font.BOLD, 15f));
-		btnLogout.setFont(mainFont);
-		btnLogout.setBackground(buttonColor);
-		btnLogout.setForeground(buttonTextColor);
-		btnLogout.setFocusPainted(false);
-		btnLogout.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 15, 5, 15));
-
-		// CardPanel ve içerik panelleri arka plan
-		cardPanel.setBackground(bgColor);
-		allSongsPanel.setBackground(bgColor);
-		albumsPanel.setBackground(bgColor);
-		artistsPanel.setBackground(bgColor);
-		playlistsPanel.setBackground(bgColor);
-		recommendationsPanel.setBackground(bgColor);
-
-		// Tablolar için font ve renkler
-		javax.swing.JTable[] tables = {allSongsTable, albumsTable, artistsTable, playlistsTable, recommendationsTable};
-		for (javax.swing.JTable t : tables) {
-			t.setFont(mainFont);
-			t.setRowHeight(28);
-			t.getTableHeader().setFont(mainFont.deriveFont(java.awt.Font.BOLD, 14f));
-			t.setSelectionBackground(listSelectionColor);
-			t.setSelectionForeground(accentColor.darker());
-			t.setGridColor(new java.awt.Color(220, 220, 220));
-			t.setShowGrid(true);
-			t.setBackground(java.awt.Color.WHITE);
-		}
-
-		// Araç çubuğu (butonlar)
-		toolBarPanel.setBackground(bgColor);
-		javax.swing.JButton[] toolButtons = {btnAdd, btnEditAllSongs, btnDeleteAllSongs, btnCreatePlaylist, btnMetadata, btnAddToPlaylist, btnRemoveFromPlaylist, btnAddArtist, 
-		                                    btnAddAlbum, btnEditAlbum, btnDeleteAlbum, btnViewSongs, btnAddToFavorites, btnRefreshRecommendations};
-		for (javax.swing.JButton b : toolButtons) {
-			b.setFont(mainFont);
-			b.setBackground(buttonColor);
-			b.setForeground(buttonTextColor);
-			b.setFocusPainted(false);
-			b.setBorder(javax.swing.BorderFactory.createEmptyBorder(6, 18, 6, 18));
-		}
-
-		// Durum çubuğu
-		statusBar.setFont(mainFont.deriveFont(java.awt.Font.ITALIC, 13f));
-		statusBar.setBackground(bgColor);
-		statusBar.setOpaque(true);
-		statusBar.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 10, 5, 10));
-		statusBar.setForeground(new java.awt.Color(100, 100, 100));
-
-		// SongDAO ile SQLite bağlantısı
-		songDAO = new SongDAO();
-		albumDAO = new AlbumDAO();
-		artistDAO = new ArtistDAO();
-		playlistDAO = new PlaylistDAO();
-
-		// All Songs tablosunu başlatırken veritabanından yükle
-		javax.swing.table.DefaultTableModel allSongsModel = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-		allSongsModel.setRowCount(0);
-		for (String[] song : songDAO.getAllSongs()) {
-			allSongsModel.addRow(song);
-		}
-		
-		// Albums tablosunu yükle
-		javax.swing.table.DefaultTableModel albumsTableModel = (javax.swing.table.DefaultTableModel) albumsTable.getModel();
-		albumsTableModel.setRowCount(0);
-		for (String[] album : albumDAO.getAllAlbums()) {
-			albumsTableModel.addRow(album);
-		}
-		
-		// Artists tablosunu yükle
-		javax.swing.table.DefaultTableModel artistsTableModel = (javax.swing.table.DefaultTableModel) artistsTable.getModel();
-		artistsTableModel.setRowCount(0);
-		for (String[] artist : artistDAO.getAllArtists()) {
-			artistsTableModel.addRow(artist);
-		}
-		
-		// Playlists tablosunu yükle
-		javax.swing.table.DefaultTableModel playlistsTableModel = (javax.swing.table.DefaultTableModel) playlistsTable.getModel();
-		playlistsTableModel.setRowCount(0);
-		for (String[] playlist : playlistDAO.getAllPlaylists()) {
-			playlistsTableModel.addRow(playlist);
-		}
-
-		// Add Song butonuna tıklanınca şarkı ekleme dialogu aç
-		btnAdd.addActionListener(e -> {
-			javax.swing.JTextField titleField = new javax.swing.JTextField();
-			javax.swing.JTextField artistField = new javax.swing.JTextField();
-			javax.swing.JTextField albumField = new javax.swing.JTextField();
-			javax.swing.JTextField genreField = new javax.swing.JTextField();
-			javax.swing.JTextField durationField = new javax.swing.JTextField();
-			Object[] message = {
-				"Title:", titleField,
-				"Artist:", artistField,
-				"Album:", albumField,
-				"Genre:", genreField,
-				"Duration (sec):", durationField
-			};
-			int option = javax.swing.JOptionPane.showConfirmDialog(
-				this, message, "Add Song", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-			if (option == javax.swing.JOptionPane.OK_OPTION) {
-				String title = titleField.getText().trim();
-				String artist = artistField.getText().trim();
-				String album = albumField.getText().trim();
-				String genre = genreField.getText().trim();
-				String duration = durationField.getText().trim();
-				if (title.isEmpty() || artist.isEmpty() || album.isEmpty() || genre.isEmpty() || duration.isEmpty()) {
-					javax.swing.JOptionPane.showMessageDialog(this, "All fields are required!", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					return;
-				}
-				try {
-					Integer.parseInt(duration);
-				} catch (NumberFormatException ex) {
-					javax.swing.JOptionPane.showMessageDialog(this, "Duration must be a number!", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					return;
-				}
-				
-				try {
-					// Şarkıyı veritabanına ekle - ensure this uses the instance variable
-					songDAO.addSong(title, artist, album, genre);
-					
-					// Şarkıyı tabloya ekle
-					javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-					model.addRow(new Object[] {title, artist, album, genre});
-					
-					// Artist'i kontrol et ve ekle
-					boolean artistExists = false;
-					javax.swing.table.DefaultTableModel artistModel = (javax.swing.table.DefaultTableModel) artistsTable.getModel();
-					for (int i = 0; i < artistModel.getRowCount(); i++) {
-						if (artistModel.getValueAt(i, 0).equals(artist)) {
-							artistExists = true;
-							break;
-						}
-					}
-					
-					if (!artistExists) {
-						artistModel.addRow(new Object[] {artist, "Unknown", genre});
-					}
-					
-					// Album'ü kontrol et ve ekle
-					boolean albumExists = false;
-					javax.swing.table.DefaultTableModel albumModel = (javax.swing.table.DefaultTableModel) albumsTable.getModel();
-					for (int i = 0; i < albumModel.getRowCount(); i++) {
-						if (albumModel.getValueAt(i, 0).equals(album) && albumModel.getValueAt(i, 1).equals(artist)) {
-							albumExists = true;
-							break;
-						}
-					}
-					
-					if (!albumExists) {
-						java.util.Calendar now = java.util.Calendar.getInstance();
-						albumModel.addRow(new Object[] {album, artist, String.valueOf(now.get(java.util.Calendar.YEAR)), genre});
-					}
-					
-					statusBar.setText("Status: Song added successfully and saved to database.");
-				} catch (Exception ex) {
-					statusBar.setText("Status: Error saving song - " + ex.getMessage());
-					ex.printStackTrace();
-				}
-			}
-		});
-
-		// Edit butonuna tıklanınca seçili satırı düzenle
-		btnEditAllSongs.addActionListener(e -> {
-				int row = allSongsTable.getSelectedRow();
-				if (row == -1) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Please select a song to edit.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-					return;
-				}
-				javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-				String oldTitle = (String) model.getValueAt(row, 0);
-				String oldArtist = (String) model.getValueAt(row, 1);
-				String oldAlbum = (String) model.getValueAt(row, 2);
-				String oldGenre = (String) model.getValueAt(row, 3);
-				
-				javax.swing.JTextField titleField = new javax.swing.JTextField(oldTitle);
-				javax.swing.JTextField artistField = new javax.swing.JTextField(oldArtist);
-				javax.swing.JTextField albumField = new javax.swing.JTextField(oldAlbum);
-				javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre);
-				
-				Object[] message = {
-					"Title:", titleField,
-					"Artist:", artistField,
-					"Album:", albumField,
-					"Genre:", genreField
-				};
-				
-				int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Edit Song", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-				if (option == javax.swing.JOptionPane.OK_OPTION) {
-				    String newTitle = titleField.getText().trim();
-				    String newArtist = artistField.getText().trim();
-				    String newAlbum = albumField.getText().trim();
-				    String newGenre = genreField.getText().trim();
-				    
-				    try {
-				        // Update the database
-				        boolean updateSuccessful = songDAO.updateSong(
-				            oldTitle, oldArtist, oldAlbum, 
-				            newTitle, newArtist, newAlbum, newGenre
-				        );
-				        
-				        if (updateSuccessful) {
-				            // Update the table if database update was successful
-				            model.setValueAt(newTitle, row, 0);
-				            model.setValueAt(newArtist, row, 1);
-				            model.setValueAt(newAlbum, row, 2);
-				            model.setValueAt(newGenre, row, 3);
-				            
-				            statusBar.setText("Status: Song edited successfully and database updated.");
-				        } else {
-				            statusBar.setText("Status: Error updating song in database.");
-				        }
-				    } catch (Exception ex) {
-				        statusBar.setText("Status: Error editing song - " + ex.getMessage());
-				        ex.printStackTrace();
-				    }
-			    }
-		});
-
-		// Delete butonuna tıklanınca seçili satırı sil
-		btnDeleteAllSongs.addActionListener(e -> {
-				int row = allSongsTable.getSelectedRow();
-				if (row == -1) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Please select a song to delete.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-					return;
-				}
-				int confirm = javax.swing.JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the selected song?", "Confirm Delete", javax.swing.JOptionPane.YES_NO_OPTION);
-				if (confirm == javax.swing.JOptionPane.YES_OPTION) {
-					javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-                    String title = (String) model.getValueAt(row, 0);
-                    String artist = (String) model.getValueAt(row, 1);
-                    String album = (String) model.getValueAt(row, 2);
+        btnEditPlaylist = new JButton("Edit Playlist");
+        btnDeletePlaylist = new JButton("Delete Playlist");
+        btnAddToPlaylist = new JButton("Add to Playlist");
+        btnRemoveFromPlaylist = new JButton("Remove from Playlist");
+        
+        // Add action listeners
+        btnCreatePlaylist.addActionListener(e -> onCreatePlaylistClicked());
+        btnEditPlaylist.addActionListener(e -> onEditPlaylistClicked());
+        btnDeletePlaylist.addActionListener(e -> onDeletePlaylistClicked());
+        btnAddToPlaylist.addActionListener(e -> onAddToPlaylistClicked());
+        btnRemoveFromPlaylist.addActionListener(e -> onRemoveFromPlaylistClicked());
+        
+        // Add buttons to panel
+        buttonsPanel.add(btnCreatePlaylist);
+        buttonsPanel.add(btnEditPlaylist);
+        buttonsPanel.add(btnDeletePlaylist);
+        buttonsPanel.add(btnAddToPlaylist);
+        buttonsPanel.add(btnRemoveFromPlaylist);
+    }
+    
+    /**
+     * Load data from database into tables
+     */
+    protected void loadDataFromDatabase() {
+        try {
+            // Load songs
+            DefaultTableModel songsModel = (DefaultTableModel) songsTable.getModel();
+            songsModel.setRowCount(0); // Clear existing data
+            for (String[] song : songDAO.getAllSongs()) {
+                songsModel.addRow(song);
+            }
+            
+            // Load artists
+            DefaultTableModel artistsModel = (DefaultTableModel) artistsTable.getModel();
+            artistsModel.setRowCount(0);
+            for (String[] artist : artistDAO.getAllArtists()) {
+                artistsModel.addRow(artist);
+            }
+            
+            // Load albums
+            DefaultTableModel albumsModel = (DefaultTableModel) albumsTable.getModel();
+            albumsModel.setRowCount(0);
+            for (String[] album : albumDAO.getAllAlbums()) {
+                albumsModel.addRow(album);
+            }
+            
+            // Load playlists
+            DefaultTableModel playlistsModel = (DefaultTableModel) playlistsTable.getModel();
+            playlistsModel.setRowCount(0);
+            for (String[] playlist : playlistDAO.getAllPlaylists()) {
+                playlistsModel.addRow(playlist);
+            }
+            
+            updateStatusBar("Data loaded successfully");
+        } catch (Exception e) {
+            showErrorMessage("Error loading data: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Close database connection when application is closing
+     */
+    protected void closeDatabase() {
+        try {
+            if (initializeDatabase) {
+                DatabaseUtil.closeConnection();
+                System.out.println("Database connection closed");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Update the status bar with a message
+     */
+    protected void updateStatusBar(String message) {
+        statusLabel.setText("Status: " + message);
+    }
+    
+    /**
+     * Show an error message dialog
+     */
+    protected void showErrorMessage(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+    
+    /**
+     * Show an information message dialog
+     */
+    protected void showInfoMessage(String message) {
+        JOptionPane.showMessageDialog(this, message, "Information", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    /**
+     * Show a confirmation dialog
+     * @return true if user confirms, false otherwise
+     */
+    protected boolean showConfirmDialog(String message) {
+        int result = JOptionPane.showConfirmDialog(this, message, "Confirm", JOptionPane.YES_NO_OPTION);
+        return result == JOptionPane.YES_OPTION;
+    }
+    
+    //=================== SONGS TAB ACTIONS ===================//
+    
+    /**
+     * Handle Add Song button click
+     */
+    protected void onAddSongClicked() {
+        try {
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            titlePanel.add(new JLabel("Title:"));
+            javax.swing.JTextField titleField = new javax.swing.JTextField(20);
+            titlePanel.add(titleField);
+            panel.add(titlePanel);
+            
+            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            artistPanel.add(new JLabel("Artist:"));
+            javax.swing.JTextField artistField = new javax.swing.JTextField(20);
+            artistPanel.add(artistField);
+            panel.add(artistPanel);
+            
+            JPanel albumPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            albumPanel.add(new JLabel("Album:"));
+            javax.swing.JTextField albumField = new javax.swing.JTextField(20);
+            albumPanel.add(albumField);
+            panel.add(albumPanel);
+            
+            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            genrePanel.add(new JLabel("Genre:"));
+            javax.swing.JTextField genreField = new javax.swing.JTextField(20);
+            genrePanel.add(genreField);
+            panel.add(genrePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Add Song", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                String title = titleField.getText().trim();
+                String artist = artistField.getText().trim();
+                String album = albumField.getText().trim();
+                String genre = genreField.getText().trim();
+                
+                // Validate input
+                if (title.isEmpty() || artist.isEmpty() || album.isEmpty() || genre.isEmpty()) {
+                    showErrorMessage("All fields are required");
+                    return;
+                }
+                
+                try {
+                    // Add song to database
+                    songDAO.addSong(title, artist, album, genre);
                     
-                    try {
-                        // Veritabanından sil
-                        songDAO.deleteSong(title, artist, album);
-                        
-                        // Tabloyu güncelle
-                        model.removeRow(row);
-                        
-                        statusBar.setText("Status: Song deleted successfully and database updated.");
-                    } catch (Exception ex) {
-                        statusBar.setText("Status: Error deleting song - " + ex.getMessage());
-                        ex.printStackTrace();
-                    }
-				}
-		});
-
-		// Create Playlist butonuna tıklanınca yeni playlist ekle
-		btnCreatePlaylist.addActionListener(new java.awt.event.ActionListener() {
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				javax.swing.JTextField nameField = new javax.swing.JTextField();
-				Object[] message = {"Playlist Name:", nameField};
-				int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Create Playlist", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-				if (option == javax.swing.JOptionPane.OK_OPTION) {
-					String name = nameField.getText().trim();
-					if (name.isEmpty()) {
-						javax.swing.JOptionPane.showMessageDialog(null, "Playlist name cannot be empty!", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-						return;
-					}
-					
-					try {
-						// Veritabanına playlist ekle
-						boolean success = playlistDAO.addPlaylist(name, "", 1);
-						
-						if (success) {
-							// UI'yi güncelle
-							javax.swing.table.DefaultTableModel playlistsTableModel = (javax.swing.table.DefaultTableModel) playlistsTable.getModel();
-							playlistsTableModel.addRow(new Object[] {name, 0, java.time.LocalDate.now().toString()});
-							statusBar.setText("Status: Playlist created successfully.");
-						} else {
-							statusBar.setText("Status: Error creating playlist in database.");
-						}
-					} catch (Exception ex) {
-						javax.swing.JOptionPane.showMessageDialog(null, "Error creating playlist: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-						ex.printStackTrace();
-					}
-				}
-			}
-		});
-
-		// Metadata butonuna tıklanınca seçili şarkının bilgilerini göster
-		btnMetadata.addActionListener(new java.awt.event.ActionListener() {
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				int row = allSongsTable.getSelectedRow();
-				if (row == -1) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Please select a song to view metadata.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-					return;
-				}
-				javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-				String title = (String) model.getValueAt(row, 0);
-				String artist = (String) model.getValueAt(row, 1);
-				String album = (String) model.getValueAt(row, 2);
-				String genre = (String) model.getValueAt(row, 3);
-				String message = String.format("Title: %s\nArtist: %s\nAlbum: %s\nGenre: %s", title, artist, album, genre);
-				javax.swing.JOptionPane.showMessageDialog(null, message, "Song Metadata", javax.swing.JOptionPane.INFORMATION_MESSAGE);
-			}
-		});
-
-		// Add Song to Playlist butonuna tıklanınca şarkı ekleme dialogu aç
-		btnAddToPlaylist.addActionListener(new java.awt.event.ActionListener() {
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				int playlistRow = playlistsTable.getSelectedRow();
-				if (playlistRow == -1) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Please select a playlist to add a song.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-					return;
-				}
-				
-				// Mevcut şarkıları al
-				javax.swing.table.DefaultTableModel allSongsModel = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-				int rowCount = allSongsModel.getRowCount();
-				
-				if (rowCount == 0) {
-					javax.swing.JOptionPane.showMessageDialog(null, "No songs available to add.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    // Update table
+                    DefaultTableModel model = (DefaultTableModel) songsTable.getModel();
+                    model.addRow(new Object[] {title, artist, album, genre});
+                    updateStatusBar("Song added successfully");
+                } catch (Exception ex) {
+                    showErrorMessage("Failed to add song to database: " + ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error adding song: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Edit Song button click
+     */
+    protected void onEditSongClicked() {
+        int selectedRow = songsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select a song to edit");
+            return;
+        }
+        
+        try {
+            // Get selected song data
+            DefaultTableModel model = (DefaultTableModel) songsTable.getModel();
+            String oldTitle = (String) model.getValueAt(selectedRow, 0);
+            String oldArtist = (String) model.getValueAt(selectedRow, 1);
+            String oldAlbum = (String) model.getValueAt(selectedRow, 2);
+            String oldGenre = (String) model.getValueAt(selectedRow, 3);
+            
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            titlePanel.add(new JLabel("Title:"));
+            javax.swing.JTextField titleField = new javax.swing.JTextField(oldTitle, 20);
+            titlePanel.add(titleField);
+            panel.add(titlePanel);
+            
+            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            artistPanel.add(new JLabel("Artist:"));
+            javax.swing.JTextField artistField = new javax.swing.JTextField(oldArtist, 20);
+            artistPanel.add(artistField);
+            panel.add(artistPanel);
+            
+            JPanel albumPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            albumPanel.add(new JLabel("Album:"));
+            javax.swing.JTextField albumField = new javax.swing.JTextField(oldAlbum, 20);
+            albumPanel.add(albumField);
+            panel.add(albumPanel);
+            
+            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            genrePanel.add(new JLabel("Genre:"));
+            javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre, 20);
+            genrePanel.add(genreField);
+            panel.add(genrePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Song", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                String newTitle = titleField.getText().trim();
+                String newArtist = artistField.getText().trim();
+                String newAlbum = albumField.getText().trim();
+                String newGenre = genreField.getText().trim();
+                
+                // Validate input
+                if (newTitle.isEmpty() || newArtist.isEmpty() || newAlbum.isEmpty() || newGenre.isEmpty()) {
+                    showErrorMessage("All fields are required");
 					return;
 				}
 				
-				// Şarkı listesini oluştur
-				String[] songs = new String[rowCount];
-				for (int i = 0; i < rowCount; i++) {
-					String title = (String) allSongsModel.getValueAt(i, 0);
-					String artist = (String) allSongsModel.getValueAt(i, 1);
-					songs[i] = title + " - " + artist;
-				}
-				
-				// Şarkı seç
-				String selectedSong = (String) javax.swing.JOptionPane.showInputDialog(null, 
-					"Select a song to add:", "Add Song to Playlist", 
-					javax.swing.JOptionPane.QUESTION_MESSAGE, null, songs, songs[0]);
-				
-				if (selectedSong != null) {
-					// Playlist'in song count'unu güncelle
-					javax.swing.table.DefaultTableModel playlistsModel = (javax.swing.table.DefaultTableModel) playlistsTable.getModel();
-					int currentCount = Integer.parseInt(playlistsModel.getValueAt(playlistRow, 1).toString());
-					playlistsModel.setValueAt(currentCount + 1, playlistRow, 1);
-					
-					statusBar.setText("Status: Song '" + selectedSong + "' added to playlist.");
-				}
-			}
-		});
-
-		// Remove Song from Playlist butonuna tıklanınca şarkı silme dialogu aç
-		btnRemoveFromPlaylist.addActionListener(new java.awt.event.ActionListener() {
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				int playlistRow = playlistsTable.getSelectedRow();
-				if (playlistRow == -1) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Please select a playlist to remove a song.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-					return;
-				}
-				
-				// Mevcut şarkı sayısını kontrol et
-				javax.swing.table.DefaultTableModel playlistsModel = (javax.swing.table.DefaultTableModel) playlistsTable.getModel();
-				int currentCount = Integer.parseInt(playlistsModel.getValueAt(playlistRow, 1).toString());
-				
-				if (currentCount <= 0) {
-					javax.swing.JOptionPane.showMessageDialog(null, "This playlist has no songs to remove.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-					return;
-				}
-				
-				// Şarkıyı sil
-				String songTitle = (String) javax.swing.JOptionPane.showInputDialog(null, "Enter the song title to remove:", "Remove Song from Playlist", javax.swing.JOptionPane.QUESTION_MESSAGE);
-				
-				if (songTitle != null && !songTitle.trim().isEmpty()) {
-					// Playlist song count'u güncelle
-					playlistsModel.setValueAt(currentCount - 1, playlistRow, 1);
-					statusBar.setText("Status: Song '" + songTitle + "' removed from playlist.");
-				}
-			}
-		});
-
-		// Add Artist butonuna tıklanınca yeni artist ekleme dialogu aç
-		btnAddArtist.addActionListener(new java.awt.event.ActionListener() {
-			public void actionPerformed(java.awt.event.ActionEvent e) {
-				javax.swing.JTextField nameField = new javax.swing.JTextField();
-				javax.swing.JTextField countryField = new javax.swing.JTextField();
-				javax.swing.JTextField genreField = new javax.swing.JTextField();
-				Object[] message = {"Artist Name:", nameField, "Country:", countryField, "Genre:", genreField};
-				int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Add Artist", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-				if (option == javax.swing.JOptionPane.OK_OPTION) {
+                // Update song in database
+                boolean success = songDAO.updateSong(oldTitle, oldArtist, oldAlbum, newTitle, newArtist, newAlbum, newGenre);
+                
+                if (success) {
+                    // Update table
+                    model.setValueAt(newTitle, selectedRow, 0);
+                    model.setValueAt(newArtist, selectedRow, 1);
+                    model.setValueAt(newAlbum, selectedRow, 2);
+                    model.setValueAt(newGenre, selectedRow, 3);
+                    updateStatusBar("Song updated successfully");
+                } else {
+                    showErrorMessage("Failed to update song in database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error updating song: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Delete Song button click
+     */
+    protected void onDeleteSongClicked() {
+        int selectedRow = songsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select a song to delete");
+            return;
+        }
+        
+        try {
+            // Get selected song data
+            DefaultTableModel model = (DefaultTableModel) songsTable.getModel();
+            String title = (String) model.getValueAt(selectedRow, 0);
+            String artist = (String) model.getValueAt(selectedRow, 1);
+            String album = (String) model.getValueAt(selectedRow, 2);
+            
+            // Confirm deletion
+            boolean confirm = showConfirmDialog("Are you sure you want to delete the song '" + title + "' by '" + artist + "'?");
+            if (confirm) {
+                // Delete song from database
+                try {
+                    songDAO.deleteSong(title, artist, album);
+                    
+                    // Remove row from table
+                    model.removeRow(selectedRow);
+                    updateStatusBar("Song deleted successfully");
+                } catch (Exception ex) {
+                    showErrorMessage("Failed to delete song from database: " + ex.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error deleting song: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    //=================== ARTISTS TAB ACTIONS ===================//
+    
+    /**
+     * Handle Add Artist button click
+     */
+    protected void onAddArtistClicked() {
+        try {
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            namePanel.add(new JLabel("Name:"));
+            javax.swing.JTextField nameField = new javax.swing.JTextField(20);
+            namePanel.add(nameField);
+            panel.add(namePanel);
+            
+            JPanel countryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            countryPanel.add(new JLabel("Country:"));
+            javax.swing.JTextField countryField = new javax.swing.JTextField(20);
+            countryPanel.add(countryField);
+            panel.add(countryPanel);
+            
+            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            genrePanel.add(new JLabel("Genre:"));
+            javax.swing.JTextField genreField = new javax.swing.JTextField(20);
+            genrePanel.add(genreField);
+            panel.add(genrePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Add Artist", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
 					String name = nameField.getText().trim();
 					String country = countryField.getText().trim();
 					String genre = genreField.getText().trim();
 					
+                // Validate input
 					if (name.isEmpty() || country.isEmpty() || genre.isEmpty()) {
-						javax.swing.JOptionPane.showMessageDialog(null, "All fields are required!", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                    showErrorMessage("All fields are required");
 						return;
 					}
 					
-					try {
-						// Veritabanına artist ekle
+                // Add artist to database
 						boolean success = artistDAO.addArtist(name, country, genre, 1);
 						
 						if (success) {
-							// UI'yi güncelle
-							javax.swing.table.DefaultTableModel artistsTableModel = (javax.swing.table.DefaultTableModel) artistsTable.getModel();
-							artistsTableModel.addRow(new Object[] {name, country, genre});
-							statusBar.setText("Status: Artist added successfully.");
+                    // Update table
+                    DefaultTableModel model = (DefaultTableModel) artistsTable.getModel();
+                    model.addRow(new Object[] {name, country, genre});
+                    updateStatusBar("Artist added successfully");
 						} else {
-							statusBar.setText("Status: Error adding artist to database.");
-						}
-					} catch (Exception ex) {
-						javax.swing.JOptionPane.showMessageDialog(null, "Error adding artist: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-						ex.printStackTrace();
-					}
-				}
-			}
-		});
-
-		// Edit butonuna tıklanınca seçili satırı düzenle
-		btnEditArtists.addActionListener(e -> {
-			int row = artistsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select an artist to edit.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    showErrorMessage("Failed to add artist to database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error adding artist: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Edit Artist button click
+     */
+    protected void onEditArtistClicked() {
+        int selectedRow = artistsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select an artist to edit");
 				return;
 			}
-			javax.swing.table.DefaultTableModel artistTableModel = (javax.swing.table.DefaultTableModel) artistsTable.getModel();
-			String oldName = (String) artistTableModel.getValueAt(row, 0);
-			String oldCountry = (String) artistTableModel.getValueAt(row, 1);
-			String oldGenre = (String) artistTableModel.getValueAt(row, 2);
-			
-			javax.swing.JTextField nameField = new javax.swing.JTextField(oldName);
-			javax.swing.JTextField countryField = new javax.swing.JTextField(oldCountry);
-			javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre);
-			Object[] message = {
-				"Artist Name:", nameField,
-				"Country:", countryField,
-				"Genre:", genreField
-			};
-			int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Edit Artist", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-			if (option == javax.swing.JOptionPane.OK_OPTION) {
+        
+        try {
+            // Get selected artist data
+            DefaultTableModel model = (DefaultTableModel) artistsTable.getModel();
+            String oldName = (String) model.getValueAt(selectedRow, 0);
+            String oldCountry = (String) model.getValueAt(selectedRow, 1);
+            String oldGenre = (String) model.getValueAt(selectedRow, 2);
+            
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            namePanel.add(new JLabel("Name:"));
+            javax.swing.JTextField nameField = new javax.swing.JTextField(oldName, 20);
+            namePanel.add(nameField);
+            panel.add(namePanel);
+            
+            JPanel countryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            countryPanel.add(new JLabel("Country:"));
+            javax.swing.JTextField countryField = new javax.swing.JTextField(oldCountry, 20);
+            countryPanel.add(countryField);
+            panel.add(countryPanel);
+            
+            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            genrePanel.add(new JLabel("Genre:"));
+            javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre, 20);
+            genrePanel.add(genreField);
+            panel.add(genrePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Artist", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
 				String newName = nameField.getText().trim();
 				String newCountry = countryField.getText().trim();
 				String newGenre = genreField.getText().trim();
 				
-				try {
-					// Veritabanında artist güncelle
+                // Validate input
+                if (newName.isEmpty() || newCountry.isEmpty() || newGenre.isEmpty()) {
+                    showErrorMessage("All fields are required");
+                    return;
+                }
+                
+                // Update artist in database
 					boolean success = artistDAO.updateArtist(oldName, newName, newCountry, newGenre);
 					
 					if (success) {
-						// UI'yi güncelle
-						artistTableModel.setValueAt(newName, row, 0);
-						artistTableModel.setValueAt(newCountry, row, 1);
-						artistTableModel.setValueAt(newGenre, row, 2);
-						statusBar.setText("Status: Artist edited successfully.");
+                    // Update table
+                    model.setValueAt(newName, selectedRow, 0);
+                    model.setValueAt(newCountry, selectedRow, 1);
+                    model.setValueAt(newGenre, selectedRow, 2);
+                    updateStatusBar("Artist updated successfully");
 					} else {
-						statusBar.setText("Status: Error updating artist in database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error updating artist: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
-
-		// Delete butonuna tıklanınca seçili satırı sil
-		btnDeleteArtists.addActionListener(e -> {
-			int row = artistsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select an artist to delete.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    showErrorMessage("Failed to update artist in database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error updating artist: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Delete Artist button click
+     */
+    protected void onDeleteArtistClicked() {
+        int selectedRow = artistsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select an artist to delete");
 				return;
 			}
-			int confirm = javax.swing.JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the selected artist?", "Confirm Delete", javax.swing.JOptionPane.YES_NO_OPTION);
-			if (confirm == javax.swing.JOptionPane.YES_OPTION) {
-				javax.swing.table.DefaultTableModel artistTableModel = (javax.swing.table.DefaultTableModel) artistsTable.getModel();
-				String name = (String) artistTableModel.getValueAt(row, 0);
-				
-				try {
-					// Veritabanından artist sil
+        
+        try {
+            // Get selected artist data
+            DefaultTableModel model = (DefaultTableModel) artistsTable.getModel();
+            String name = (String) model.getValueAt(selectedRow, 0);
+            
+            // Confirm deletion
+            boolean confirm = showConfirmDialog("Are you sure you want to delete the artist '" + name + "'?");
+            if (confirm) {
+                // Delete artist from database
 					boolean success = artistDAO.deleteArtist(name);
 					
 					if (success) {
-						// UI'yi güncelle
-						artistTableModel.removeRow(row);
-						statusBar.setText("Status: Artist deleted successfully.");
+                    // Remove row from table
+                    model.removeRow(selectedRow);
+                    updateStatusBar("Artist deleted successfully");
 					} else {
-						statusBar.setText("Status: Error deleting artist from database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error deleting artist: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
-
-		// Albums için butonlar
-		btnAddAlbum.addActionListener(e -> {
-			javax.swing.JTextField titleField = new javax.swing.JTextField();
-			javax.swing.JTextField artistField = new javax.swing.JTextField();
-			javax.swing.JTextField yearField = new javax.swing.JTextField(String.valueOf(java.time.LocalDate.now().getYear()));
-			javax.swing.JTextField genreField = new javax.swing.JTextField();
-			
-			Object[] message = {
-				"Album Title:", titleField,
-				"Artist:", artistField,
-				"Year:", yearField,
-				"Genre:", genreField
-			};
-			
-			int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Add Album", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-			if (option == javax.swing.JOptionPane.OK_OPTION) {
+                    showErrorMessage("Failed to delete artist from database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error deleting artist: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    //=================== ALBUMS TAB ACTIONS ===================//
+    
+    /**
+     * Handle Add Album button click
+     */
+    protected void onAddAlbumClicked() {
+        try {
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            titlePanel.add(new JLabel("Title:"));
+            javax.swing.JTextField titleField = new javax.swing.JTextField(20);
+            titlePanel.add(titleField);
+            panel.add(titlePanel);
+            
+            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            artistPanel.add(new JLabel("Artist:"));
+            javax.swing.JTextField artistField = new javax.swing.JTextField(20);
+            artistPanel.add(artistField);
+            panel.add(artistPanel);
+            
+            JPanel yearPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            yearPanel.add(new JLabel("Year:"));
+            javax.swing.JTextField yearField = new javax.swing.JTextField(
+                    String.valueOf(java.time.LocalDate.now().getYear()), 20);
+            yearPanel.add(yearField);
+            panel.add(yearPanel);
+            
+            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            genrePanel.add(new JLabel("Genre:"));
+            javax.swing.JTextField genreField = new javax.swing.JTextField(20);
+            genrePanel.add(genreField);
+            panel.add(genrePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Add Album", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
 				String title = titleField.getText().trim();
 				String artist = artistField.getText().trim();
 				String year = yearField.getText().trim();
 				String genre = genreField.getText().trim();
 				
+                // Validate input
 				if (title.isEmpty() || artist.isEmpty() || year.isEmpty() || genre.isEmpty()) {
-					javax.swing.JOptionPane.showMessageDialog(null, "All fields are required!", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                    showErrorMessage("All fields are required");
 					return;
 				}
 				
-				try {
-					// Veritabanına album ekle
+                // Add album to database
 					boolean success = albumDAO.addAlbum(title, artist, year, genre, 1);
 					
 					if (success) {
-						// UI'yi güncelle
-						javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) albumsTable.getModel();
+                    // Update table
+                    DefaultTableModel model = (DefaultTableModel) albumsTable.getModel();
 						model.addRow(new Object[] {title, artist, year, genre});
-						statusBar.setText("Status: Album added successfully.");
+                    updateStatusBar("Album added successfully");
 					} else {
-						statusBar.setText("Status: Error adding album to database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error adding album: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
-		
-		btnEditAlbum.addActionListener(e -> {
-			int row = albumsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select an album to edit.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    showErrorMessage("Failed to add album to database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error adding album: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Edit Album button click
+     */
+    protected void onEditAlbumClicked() {
+        int selectedRow = albumsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select an album to edit");
 				return;
 			}
 			
-			javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) albumsTable.getModel();
-			String oldTitle = (String) model.getValueAt(row, 0);
-			String oldArtist = (String) model.getValueAt(row, 1);
-			String oldYear = (String) model.getValueAt(row, 2);
-			String oldGenre = (String) model.getValueAt(row, 3);
-			
-			javax.swing.JTextField titleField = new javax.swing.JTextField(oldTitle);
-			javax.swing.JTextField artistField = new javax.swing.JTextField(oldArtist);
-			javax.swing.JTextField yearField = new javax.swing.JTextField(oldYear);
-			javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre);
-			
-			Object[] message = {
-				"Album Title:", titleField,
-				"Artist:", artistField,
-				"Year:", yearField,
-				"Genre:", genreField
-			};
-			
-			int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Edit Album", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-			if (option == javax.swing.JOptionPane.OK_OPTION) {
+        try {
+            // Get selected album data
+            DefaultTableModel model = (DefaultTableModel) albumsTable.getModel();
+            String oldTitle = (String) model.getValueAt(selectedRow, 0);
+            String oldArtist = (String) model.getValueAt(selectedRow, 1);
+            String oldYear = (String) model.getValueAt(selectedRow, 2);
+            String oldGenre = (String) model.getValueAt(selectedRow, 3);
+            
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            titlePanel.add(new JLabel("Title:"));
+            javax.swing.JTextField titleField = new javax.swing.JTextField(oldTitle, 20);
+            titlePanel.add(titleField);
+            panel.add(titlePanel);
+            
+            JPanel artistPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            artistPanel.add(new JLabel("Artist:"));
+            javax.swing.JTextField artistField = new javax.swing.JTextField(oldArtist, 20);
+            artistPanel.add(artistField);
+            panel.add(artistPanel);
+            
+            JPanel yearPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            yearPanel.add(new JLabel("Year:"));
+            javax.swing.JTextField yearField = new javax.swing.JTextField(oldYear, 20);
+            yearPanel.add(yearField);
+            panel.add(yearPanel);
+            
+            JPanel genrePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            genrePanel.add(new JLabel("Genre:"));
+            javax.swing.JTextField genreField = new javax.swing.JTextField(oldGenre, 20);
+            genrePanel.add(genreField);
+            panel.add(genrePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Album", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
 				String newTitle = titleField.getText().trim();
 				String newArtist = artistField.getText().trim();
 				String newYear = yearField.getText().trim();
 				String newGenre = genreField.getText().trim();
 				
-				try {
-					// Veritabanında album güncelle
+                // Validate input
+                if (newTitle.isEmpty() || newArtist.isEmpty() || newYear.isEmpty() || newGenre.isEmpty()) {
+                    showErrorMessage("All fields are required");
+                    return;
+                }
+                
+                // Update album in database
 					boolean success = albumDAO.updateAlbum(oldTitle, oldArtist, newTitle, newArtist, newYear, newGenre);
 					
 					if (success) {
-						// UI'yi güncelle
-						model.setValueAt(newTitle, row, 0);
-						model.setValueAt(newArtist, row, 1);
-						model.setValueAt(newYear, row, 2);
-						model.setValueAt(newGenre, row, 3);
-						statusBar.setText("Status: Album edited successfully.");
+                    // Update table
+                    model.setValueAt(newTitle, selectedRow, 0);
+                    model.setValueAt(newArtist, selectedRow, 1);
+                    model.setValueAt(newYear, selectedRow, 2);
+                    model.setValueAt(newGenre, selectedRow, 3);
+                    updateStatusBar("Album updated successfully");
 					} else {
-						statusBar.setText("Status: Error updating album in database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error updating album: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
-		
-		btnDeleteAlbum.addActionListener(e -> {
-			int row = albumsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select an album to delete.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    showErrorMessage("Failed to update album in database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error updating album: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Delete Album button click
+     */
+    protected void onDeleteAlbumClicked() {
+        int selectedRow = albumsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select an album to delete");
 				return;
 			}
-			
-			int confirm = javax.swing.JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the selected album?", "Confirm Delete", javax.swing.JOptionPane.YES_NO_OPTION);
-			if (confirm == javax.swing.JOptionPane.YES_OPTION) {
-				javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) albumsTable.getModel();
-				String title = (String) model.getValueAt(row, 0);
-				String artist = (String) model.getValueAt(row, 1);
-				
-				try {
-					// Veritabanından album sil
+        
+        try {
+            // Get selected album data
+            DefaultTableModel model = (DefaultTableModel) albumsTable.getModel();
+            String title = (String) model.getValueAt(selectedRow, 0);
+            String artist = (String) model.getValueAt(selectedRow, 1);
+            
+            // Confirm deletion
+            boolean confirm = showConfirmDialog("Are you sure you want to delete the album '" + title + "' by '" + artist + "'?");
+            if (confirm) {
+                // Delete album from database
 					boolean success = albumDAO.deleteAlbum(title, artist);
 					
 					if (success) {
-						// UI'yi güncelle
-						model.removeRow(row);
-						statusBar.setText("Status: Album deleted successfully.");
+                    // Remove row from table
+                    model.removeRow(selectedRow);
+                    updateStatusBar("Album deleted successfully");
 					} else {
-						statusBar.setText("Status: Error deleting album from database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error deleting album: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
-		
-		btnViewSongs.addActionListener(e -> {
-			int row = albumsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select an album to view metadata.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    showErrorMessage("Failed to delete album from database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error deleting album: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    //=================== PLAYLISTS TAB ACTIONS ===================//
+    
+    /**
+     * Handle Create Playlist button click
+     */
+    protected void onCreatePlaylistClicked() {
+        try {
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            namePanel.add(new JLabel("Name:"));
+            javax.swing.JTextField nameField = new javax.swing.JTextField(20);
+            namePanel.add(nameField);
+            panel.add(namePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Create Playlist", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                String name = nameField.getText().trim();
+                
+                // Validate input
+                if (name.isEmpty()) {
+                    showErrorMessage("Playlist name is required");
 				return;
 			}
 			
-			javax.swing.table.DefaultTableModel albumModel = (javax.swing.table.DefaultTableModel) albumsTable.getModel();
-			String albumTitle = (String) albumModel.getValueAt(row, 0);
-			String albumArtist = (String) albumModel.getValueAt(row, 1);
-			String albumYear = (String) albumModel.getValueAt(row, 2);
-			String albumGenre = (String) albumModel.getValueAt(row, 3);
-			
-			String message = String.format("Album: %s\nArtist: %s\nYear: %s\nGenre: %s", 
-				albumTitle, albumArtist, albumYear, albumGenre);
-				
-			javax.swing.JOptionPane.showMessageDialog(null, message, "Album Metadata", javax.swing.JOptionPane.INFORMATION_MESSAGE);
-		});
-
-		// Recommendations için butonlar
-		btnRefreshRecommendations.addActionListener(e -> {
-			javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) recommendationsTable.getModel();
-			model.setRowCount(0); // Mevcut tavsiyeleri temizle
-			model.addRow(new Object[] {"Uptown Funk", "Mark Ronson ft. Bruno Mars", "New recommendation"});
-			model.addRow(new Object[] {"Believer", "Imagine Dragons", "You might like this"});
-			model.addRow(new Object[] {"Bad Guy", "Billie Eilish", "Popular among similar users"});
-			statusBar.setText("Status: Recommendations refreshed.");
-		});
-		
-		btnAddToFavorites.addActionListener(e -> {
-			int row = recommendationsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select a song to add to your library.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-				return;
-			}
-			
-			javax.swing.table.DefaultTableModel recModel = (javax.swing.table.DefaultTableModel) recommendationsTable.getModel();
-			String title = (String) recModel.getValueAt(row, 0);
-			String artist = (String) recModel.getValueAt(row, 1);
-			
-			// All Songs tablosuna ekle
-			javax.swing.table.DefaultTableModel songsModel = (javax.swing.table.DefaultTableModel) allSongsTable.getModel();
-			songsModel.addRow(new Object[] {title, artist, "Unknown", "Unknown"});
-			
-			statusBar.setText("Status: Song '" + title + "' added to your library.");
-		});
-
-		// Edit butonuna tıklanınca seçili satırı düzenle
-		btnEditPlaylists.addActionListener(e -> {
-			int row = playlistsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select a playlist to edit.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
-				return;
-			}
-			javax.swing.table.DefaultTableModel playlistTableModel = (javax.swing.table.DefaultTableModel) playlistsTable.getModel();
-			String oldName = (String) playlistTableModel.getValueAt(row, 0);
-			javax.swing.JTextField nameField = new javax.swing.JTextField(oldName);
-			Object[] message = {"Playlist Name:", nameField};
-			int option = javax.swing.JOptionPane.showConfirmDialog(null, message, "Edit Playlist", javax.swing.JOptionPane.OK_CANCEL_OPTION);
-			if (option == javax.swing.JOptionPane.OK_OPTION) {
-				String newName = nameField.getText().trim();
-				
-				try {
-					// Veritabanında playlist güncelle
-					boolean success = playlistDAO.updatePlaylist(oldName, newName);
+                // Add playlist to database
+                boolean success = playlistDAO.addPlaylist(name, "", 1);
 					
 					if (success) {
-						// UI'yi güncelle
-						playlistTableModel.setValueAt(newName, row, 0);
-						statusBar.setText("Status: Playlist edited successfully.");
+                    // Update table
+                    DefaultTableModel model = (DefaultTableModel) playlistsTable.getModel();
+                    model.addRow(new Object[] {name, "0", java.time.LocalDate.now().toString()});
+                    updateStatusBar("Playlist created successfully");
 					} else {
-						statusBar.setText("Status: Error updating playlist in database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error updating playlist: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
-
-		// Delete butonuna tıklanınca seçili satırı sil
-		btnDeletePlaylists.addActionListener(e -> {
-			int row = playlistsTable.getSelectedRow();
-			if (row == -1) {
-				javax.swing.JOptionPane.showMessageDialog(null, "Please select a playlist to delete.", "Warning", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    showErrorMessage("Failed to create playlist in database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error creating playlist: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Edit Playlist button click
+     */
+    protected void onEditPlaylistClicked() {
+        int selectedRow = playlistsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select a playlist to edit");
 				return;
 			}
-			int confirm = javax.swing.JOptionPane.showConfirmDialog(null, "Are you sure you want to delete the selected playlist?", "Confirm Delete", javax.swing.JOptionPane.YES_NO_OPTION);
-			if (confirm == javax.swing.JOptionPane.YES_OPTION) {
-				javax.swing.table.DefaultTableModel playlistTableModel = (javax.swing.table.DefaultTableModel) playlistsTable.getModel();
-				String name = (String) playlistTableModel.getValueAt(row, 0);
-				
-				try {
-					// Veritabanından playlist sil
-					boolean success = playlistDAO.deletePlaylist(name);
-					
-					if (success) {
-						// UI'yi güncelle
-						playlistTableModel.removeRow(row);
-						statusBar.setText("Status: Playlist deleted successfully.");
-					} else {
-						statusBar.setText("Status: Error deleting playlist from database.");
-					}
-				} catch (Exception ex) {
-					javax.swing.JOptionPane.showMessageDialog(null, "Error deleting playlist: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
-				}
-			}
-		});
+			
+			try {
+            // Get selected playlist data
+            DefaultTableModel model = (DefaultTableModel) playlistsTable.getModel();
+            String oldName = (String) model.getValueAt(selectedRow, 0);
+            
+            // Create input fields
+            JPanel panel = new JPanel();
+            panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+            
+            JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            namePanel.add(new JLabel("Name:"));
+            javax.swing.JTextField nameField = new javax.swing.JTextField(oldName, 20);
+            namePanel.add(nameField);
+            panel.add(namePanel);
+            
+            // Show dialog
+            int result = JOptionPane.showConfirmDialog(this, panel, "Edit Playlist", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                String newName = nameField.getText().trim();
+                
+                // Validate input
+                if (newName.isEmpty()) {
+                    showErrorMessage("Playlist name is required");
+                    return;
+                }
+                
+                // Update playlist in database
+                boolean success = playlistDAO.updatePlaylist(oldName, newName);
+                
+                if (success) {
+                    // Update table
+                    model.setValueAt(newName, selectedRow, 0);
+                    updateStatusBar("Playlist updated successfully");
+                } else {
+                    showErrorMessage("Failed to update playlist in database");
+                }
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error updating playlist: " + e.getMessage());
+            e.printStackTrace();
+		}
 	}
-
-}
+	
+	/**
+     * Handle Delete Playlist button click
+     */
+    protected void onDeletePlaylistClicked() {
+        int selectedRow = playlistsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select a playlist to delete");
+			return;
+		}
+        
+        try {
+            // Get selected playlist data
+            DefaultTableModel model = (DefaultTableModel) playlistsTable.getModel();
+            String name = (String) model.getValueAt(selectedRow, 0);
+            
+            // Confirm deletion
+            boolean confirm = showConfirmDialog("Are you sure you want to delete the playlist '" + name + "'?");
+            if (confirm) {
+                // Delete playlist from database
+                boolean success = playlistDAO.deletePlaylist(name);
+                
+                if (success) {
+                    // Remove row from table
+                    model.removeRow(selectedRow);
+                    updateStatusBar("Playlist deleted successfully");
+		        } else {
+                    showErrorMessage("Failed to delete playlist from database");
+		        }
+		    }
+        } catch (Exception e) {
+            showErrorMessage("Error deleting playlist: " + e.getMessage());
+            e.printStackTrace();
+	    }
+	}
+	
+	/**
+     * Handle Add to Playlist button click
+     */
+    protected void onAddToPlaylistClicked() {
+        int selectedRow = playlistsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select a playlist first");
+			return;
+		}
+        
+        try {
+            // Get selected playlist
+            DefaultTableModel playlistModel = (DefaultTableModel) playlistsTable.getModel();
+            String playlistName = (String) playlistModel.getValueAt(selectedRow, 0);
+            
+            // Get all songs for selection
+            DefaultTableModel songsModel = (DefaultTableModel) songsTable.getModel();
+            int songCount = songsModel.getRowCount();
+            
+            if (songCount == 0) {
+                showErrorMessage("No songs available to add to playlist");
+                return;
+            }
+            
+            // Create a list of songs for selection
+            String[] songs = new String[songCount];
+            for (int i = 0; i < songCount; i++) {
+                String title = (String) songsModel.getValueAt(i, 0);
+                String artist = (String) songsModel.getValueAt(i, 1);
+                songs[i] = title + " - " + artist;
+            }
+            
+            // Show selection dialog
+            String selected = (String) JOptionPane.showInputDialog(
+                    this,
+                    "Select a song to add to playlist '" + playlistName + "':",
+                    "Add to Playlist",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    songs,
+                    songs[0]);
+            
+            if (selected != null) {
+                // Extract song info
+                String[] parts = selected.split(" - ");
+                String title = parts[0];
+                String artist = parts[1];
+                
+                // Update playlist song count
+                int currentCount = Integer.parseInt(playlistModel.getValueAt(selectedRow, 1).toString());
+                playlistModel.setValueAt(Integer.toString(currentCount + 1), selectedRow, 1);
+                
+                updateStatusBar("Added '" + selected + "' to playlist '" + playlistName + "'");
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error adding song to playlist: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Handle Remove from Playlist button click
+     */
+    protected void onRemoveFromPlaylistClicked() {
+        int selectedRow = playlistsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            showErrorMessage("Please select a playlist first");
+				return;
+			}
+			
+			try {
+            // Get selected playlist
+            DefaultTableModel playlistModel = (DefaultTableModel) playlistsTable.getModel();
+            String playlistName = (String) playlistModel.getValueAt(selectedRow, 0);
+            int currentCount = Integer.parseInt(playlistModel.getValueAt(selectedRow, 1).toString());
+            
+            if (currentCount <= 0) {
+                showErrorMessage("No songs in playlist to remove");
+                return;
+            }
+            
+            // For simplicity, just ask for song name (in a real app, we would show playlist songs)
+            String songName = JOptionPane.showInputDialog(
+                    this,
+                    "Enter song name to remove from playlist '" + playlistName + "':",
+                    "Remove from Playlist",
+                    JOptionPane.QUESTION_MESSAGE);
+            
+            if (songName != null && !songName.trim().isEmpty()) {
+                // Update playlist song count
+                playlistModel.setValueAt(Integer.toString(currentCount - 1), selectedRow, 1);
+                updateStatusBar("Removed '" + songName + "' from playlist '" + playlistName + "'");
+            }
+        } catch (Exception e) {
+            showErrorMessage("Error removing song from playlist: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+} 
